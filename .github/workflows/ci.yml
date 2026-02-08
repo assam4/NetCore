@@ -15,14 +15,18 @@ jobs:
         run: sudo apt update && sudo apt install -y build-essential make
 
       - name: Build tests
+        run: make -f Makefile
+        working-directory: test/lexical
+
+      - name: Diagnostics
         run: |
-          cd test/lexical
-          make
+          pwd
+          ls -la
+        working-directory: test/lexical
 
       - name: Run tests and save log
-        run: |
-          cd test/lexical
-          ./test > lexical_test.log 2>&1
+        run: ./test > lexical_test.log 2>&1
+        working-directory: test/lexical
 
       - name: Upload test log
         uses: actions/upload-artifact@v4
