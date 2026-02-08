@@ -14,17 +14,22 @@ jobs:
       - name: Update packages and install compiler
         run: sudo apt update && sudo apt install -y build-essential make
 
-      - name: Build tests
-        run: make -f Makefile
-        working-directory: test/lexical
+      - name: Diagnostics (root)
+        run: |
+          pwd
+          ls -la
+          ls -la test/lexical
 
-      - name: Diagnostics
+      - name: Build tests
+        run: make -C test/lexical
+
+      - name: Diagnostics (test/lexical)
         run: |
           pwd
           ls -la
         working-directory: test/lexical
 
-      - name: Run tests and save log
+      - name: Run tests and save log 
         run: ./test > lexical_test.log 2>&1
         working-directory: test/lexical
 
