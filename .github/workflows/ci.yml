@@ -1,0 +1,32 @@
+name: Lexical CI
+
+on:
+  push:
+    branches: [ "lexical_part", "syntax_part" ]
+  
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Update packages and install compiler
+        run: sudo apt update && sudo apt install -y build-essential make
+
+      - name: Build tests
+        run: |
+          cd test/syntax
+          make
+
+      - name: Run tests and save log
+        run: |
+          cd test/syntax
+          ./test > syntax_test.log 2>&1
+
+      - name: Upload test log
+        uses: actions/upload-artifact@v4
+        with:
+          name: syntax_test_log
+          path: test/syntax/syntax_test.log
+
