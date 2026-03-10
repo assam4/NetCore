@@ -14,7 +14,7 @@ namespace http {
 
             struct  __shared_row_data {
                 std::set<std::string>   index;
-                std::map<std::string, std::string>   error_pages;
+                std::map<std::set<std::string>, std::string>   error_pages;
                 std::set<std::string>   allowed_methods;
                 std::string client_max_body_size;
                 std::string root;
@@ -58,6 +58,10 @@ namespace http {
                     static void parseCloseBrace(std::vector<IToken *>::const_iterator&);
                     static void parseSemicolon(std::vector<IToken *>::const_iterator&);
                     static void parseProperty(std::vector<IToken *>::const_iterator&);
+
+                    static void parse_error_pages(std::vector<IToken *>&
+                                            , std::vector<IToken *>::const_iterator&
+                                            , __shared_row_data*);
                     static void parseLocationPropery(std::vector<IToken *>&
                                                     , std::vector<__server_row_data>&
                                                     , std::vector<IToken *>::const_iterator&);
