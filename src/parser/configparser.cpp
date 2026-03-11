@@ -131,12 +131,10 @@ namespace http {
                 else if ((blockState & (Token::LOCATION & ~Token::PROPERTY))
                             && (prevType == Token::CGI_EXTENSION || prevType == Token::UPLOAD_LOCATION))
                     setLocationProperty(Tokens, pp.back().locations.back(), it);
-                else if ((blockState & (Token::SERVER & ~Token::PROPERTY))
-                            || (blockState & (Token::LOCATION & ~Token::PROPERTY)))
-                    setSharedProperty(Tokens, it,
-                        (blockState & (Token::SERVER & ~Token::PROPERTY))
-                            ? static_cast<__shared_row_data*>(&pp.back())
-                            : static_cast<__shared_row_data*>(&pp.back().locations.back()));
+                else if ((blockState & (1 << 8)))  // in LOCATION block
+                    setSharedProperty(Tokens, it, static_cast<__shared_row_data*>(&pp.back().locations.back()));
+                else if ((blockState & (Token::SERVER & ~Token::PROPERTY)))  // in SERVER block
+                    setSharedProperty(Tokens, it, static_cast<__shared_row_data*>(&pp.back()));
                 else
                     throw std::runtime_error("Unexpected value here");
             }

@@ -20,7 +20,7 @@ namespace http {
                 std::string root;
                 std::pair<std::string, std::string> ret_redirection;
                 std::string autoindex;
-            };
+            }; 
 
             struct  __location_row_data;
 
