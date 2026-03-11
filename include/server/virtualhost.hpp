@@ -12,6 +12,13 @@
 namespace http {
     namespace core {
 
+        /**
+        * @class VirtualHost
+        * @brief Runtime representation of a fully parsed and validated nginx-style virtual host configuration.
+        * @details Provides type-safe access to server listen parameters, names, content delivery rules,
+        *          location-specific routing, and request handling options. Built from raw parser output
+        *          using builder pattern with full validation. Immutable after construction for thread safety.
+        */
         class VirtualHost {
             public:
                 static VirtualHost build(const config::parser::__server_row_data&, const std::vector<VirtualHost>&);
