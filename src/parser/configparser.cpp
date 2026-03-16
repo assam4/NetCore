@@ -131,14 +131,23 @@ namespace http {
                 else if ((blockState & (Token::LOCATION & ~Token::PROPERTY))
                             && (prevType == Token::CGI_EXTENSION || prevType == Token::UPLOAD_LOCATION))
                     setLocationProperty(Tokens, pp.back().locations.back(), it);
-                else if ((blockState & (Token::SERVER & ~Token::PROPERTY))
-                            || (blockState & (Token::LOCATION & ~Token::PROPERTY)))
-                    setSharedProperty(Tokens, it,
-                        (blockState & (Token::SERVER & ~Token::PROPERTY))
-                            ? static_cast<__shared_row_data*>(&pp.back())
-                            : static_cast<__shared_row_data*>(&pp.back().locations.back()));
+                else if ((blockState & (1 << 8)))  // in LOCATION block
+                    setSharedProperty(Tokens, it, static_cast<__shared_row_data*>(&pp.back().locations.back()));
+                else if ((blockState & (Token::SERVER & ~Token::PROPERTY)))  // in SERVER block
+                    setSharedProperty(Tokens, it, static_cast<__shared_row_data*>(&pp.back()));
                 else
                     throw std::runtime_error("Unexpected value here");
+            }
+
+          void    ConfigParser::parse_error_pages(std::vector<IToken *> &tokens
+                                            , std::vector<IToken *>::const_iterator &it
+                                            , __shared_row_data *ptr) {
+                std::set<std::string> key;
+                while((it + 1) != tokens.end() && (*(it + 1))->getType() != Token::SEMICOLON) {
+                    key.insert((*it)->getValue());
+                    ++it;
+                }
+                ptr->error_pages[key] = (*it)->getValue();
             }
 
             void    ConfigParser::setSharedProperty(std::vector<IToken *> &tokens
@@ -156,8 +165,7 @@ namespace http {
                             break;
                         case Token::ERROR_PAGE:
                             if (it + 1 != tokens.end() && (*(it + 1))->getType() == Token::VALUE) {
-                                ptr->error_pages.insert(std::make_pair((*it)->getValue(), (*(it + 1))->getValue()));
-                                ++it;
+                                parse_error_pages(tokens, it, ptr);
                             } else {
                                 throw std::runtime_error("Unexpected value in error_page property");
                             }
