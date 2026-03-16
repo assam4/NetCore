@@ -6,8 +6,9 @@
 # include <string>
 # include <vector>
 # include <utility>
+# include <sys/socket.h>
 # include "server_types.hpp"
-# include "configparser.hpp"
+# include "configparser.hpp"   
 
 namespace http {
     namespace core {
@@ -60,6 +61,8 @@ namespace http {
                 types::__route route;
                 std::vector<types::__location> locations;
         };
+
+        std::pair<sockaddr_storage, socklen_t>    transform_to_sstorage(const VirtualHost&);
     }
 }
 
