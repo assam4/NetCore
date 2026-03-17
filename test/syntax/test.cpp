@@ -46,10 +46,10 @@ void print_server(const __server_row_data& s) {
         std::cout << "  Return: " << s.ret_redirection.first << " " << s.ret_redirection.second << std::endl;
     if (!s.autoindex.empty())
         std::cout << "  Autoindex: " << s.autoindex << std::endl;
-    
+
     if (!s.locations.empty()) {
         std::cout << "  Locations: " << s.locations.size() << std::endl;
-        for (size_t i = 0; i < s.locations.size(); ++i) {
+        for (std::size_t i = 0; i < s.locations.size(); ++i) {
             const __location_row_data& l = s.locations[i];
             std::cout << "    Location #" << i << ": " << l.modifier << " " << l.path << std::endl;
             if (!l.root.empty())
@@ -100,7 +100,7 @@ bool check_test(const std::string& config, const std::string& label, bool expect
     if (test_passed) {
         std::cout << "\033[32msuccess\033[0m" << std::endl;
         if (actual_success) {
-            for (size_t i = 0; i < servers.size(); ++i) {
+            for (std::size_t i = 0; i < servers.size(); ++i) {
                 std::cout << "  [Server #" << i << "]" << std::endl;
                 print_server(servers[i]);
             }
@@ -141,6 +141,6 @@ int main() {
     if (!check_test("http { server { root /var/www; location / { listen 8080; } } }", "Invalid: Listen in location", false)) all_success = false;
     if (!check_test("http { server { } location / { } }", "Invalid: Location outside server", false)) all_success = false;
     if (!check_test("http { server { location / { server { } } } }", "Invalid: Server inside location", false)) all_success = false;
-    
+
     return all_success ? 0 : 1;
 }
