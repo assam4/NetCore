@@ -1,5 +1,13 @@
 #include "HttpServer.hpp"
 #include <sys/epoll.h>
+#include <csignal>
+
+volatile sig_atomic_t HttpServer::_shutdown = 0;
+
+void HttpServer::signal_handler(int sig) {
+	static_cast<void>(sig);
+	_shutdown = 1;
+}
 
 HttpServer::HttpServer() {}
 
@@ -17,6 +25,11 @@ void HttpServer::add_server(Server* server) {
 	}
 }
 
-void HttpServer::run() { _dispatcher.run(); }
+void HttpServer::run() {
+	signal(SIGINT, HttpServer::signal_handler);
+	signal(SIGTERM, HttpServer::signal_handler);
+	signal(SIGPIPE, SIG_IGN);
+	_dispatcher.run(_shutdown);
+}
 
 void HttpServer::stop() { _dispatcher.stop(); }

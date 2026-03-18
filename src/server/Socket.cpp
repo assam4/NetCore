@@ -7,12 +7,12 @@
 #include <cstring>
 #include <iostream>
 
-NetException::NetException(const std::string& msg) : message(msg) {}
+NetException::NetException(const std::string& msg) : message(msg + ": " + strerror(errno)) {}
 
 NetException::~NetException() throw() {}
 
 const char* NetException::what() const throw() {
-	return std::string(message + ": " + std::string(strerror(errno))).c_str();
+	return message.c_str();
 }
 
 Socket::Socket(int fd) : _fd(fd), _alive(fd >= 0) {}

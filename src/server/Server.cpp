@@ -27,20 +27,12 @@ void Connection::append_write(const std::string& data) {
 bool Connection::flush_write() {
 	if (_write_offset >= _write_buf.size())
 		return true;
-	while (_write_offset < _write_buf.size()) {
-		ssize_t sent = _socket.send_raw(
-			_write_buf.c_str() + _write_offset,
-			_write_buf.size() - _write_offset
-		);
-		if (sent < 0)
-			return false;
-		if (sent == 0)
-			break;
-		_write_offset += static_cast<std::size_t>(sent);
-	}
-
+	ssize_t sent = _socket.send_raw(_write_buf.c_str() + _write_offset, _write_buf.size() - _write_offset);
+	if (sent < 0)
+		return false;
+	_write_offset += static_cast<std::size_t>(sent);
 	if (_write_offset >= _write_buf.size()) {
-		std::string().swap(_write_buf);
+		_write_buf.clear();
 		_write_offset = 0;
 		return true;
 	}
@@ -111,16 +103,11 @@ bool Server::is_listener(int fd) const {
 
 Connection* Server::accept_client(int fd) {
 	ServerSocket* listener = get_listener(fd);
-	if (!listener) {
-		std::cerr << "[Server] accept_client: fd " << fd << " is not a listener\n";
+	if (!listener)
 		return NULL;
-	}
 	Connection* conn = Connection::make_connection(*listener);
-	if (!conn) {
-		std::cerr << "[Server] accept_client: make_connection failed on listener fd " << fd << "\n";
+	if (!conn)
 		return NULL;
-	}
-	std::cerr << "[Server] accept_client: client fd " << conn->get_fd() << " accepted from listener fd " << fd << "\n";
 	_clients[conn->get_fd()] = conn;
 	return conn;
 }

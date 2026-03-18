@@ -8,9 +8,12 @@ class HttpServer {
 	private:
 		Dispatcher _dispatcher;
 		std::vector<Server*> _servers;
+		static volatile sig_atomic_t _shutdown;
 
 		HttpServer(const HttpServer&);
 		HttpServer& operator=(const HttpServer&);
+
+		static void signal_handler(int sig);
 	public:
 		HttpServer();
 		~HttpServer();
