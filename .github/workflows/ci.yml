@@ -16,11 +16,23 @@ jobs:
     - name: Install build tools
       run: sudo apt-get update && sudo apt-get install -y build-essential
 
-    - name: Build all tests
+    - name: Build server tests
       run: |
-        cd test/server && make
-        cd ../lexical && make
-        cd ../syntax && make
+        cd test/server
+        ls -l
+        make
+
+    - name: Build lexical tests
+      run: |
+        cd test/lexical
+        ls -l
+        make
+
+    - name: Build syntax tests
+      run: |
+        cd test/syntax
+        ls -l
+        make
 
     - name: Run server tests
       run: cd test/server && ./test
