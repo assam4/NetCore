@@ -36,9 +36,7 @@ namespace http {
                 VirtualHost& set_location_modifier(const std::string& data);
                 VirtualHost& set_locations(const std::vector<config::parser::__location_row_data>& data);
 
-                const std::string& get_host() const { return listen.host; }
-                uint16_t get_port() const { return listen.port; }
-                bool is_default_server() const { return listen.default_server; }
+                const std::set<types::__listen> get_listen() const { return listen; }
                 const std::vector<std::string>& get_server_name() const { return server_name.server_name; }
                 const std::map<uint16_t, std::string>& get_error_pages() const { return content.error_pages; }
                 const std::set<std::string>& get_index() const { return content.index; }
@@ -55,14 +53,14 @@ namespace http {
             private:
                 VirtualHost() {}
 
-                types::__listen listen;
+                std::set<types::__listen> listen;
                 types::__serv_name server_name;
                 types::__content content;
                 types::__route route;
                 std::vector<types::__location> locations;
         };
 
-        std::pair<sockaddr_storage, socklen_t>    transform_to_sstorage(const VirtualHost&);
+        std::vector<std::pair<sockaddr_storage, socklen_t> >    transform_to_sstorage(const VirtualHost&);
     }
 }
 

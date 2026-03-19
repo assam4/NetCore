@@ -22,8 +22,9 @@ namespace http {
         }
 
         VirtualHost& VirtualHost::set_listen(const std::set<std::string>& data) {
+            
             for (std::set<std::string>::const_iterator it = data.begin(); it != data.end(); ++it)
-                listen.fill(*it);
+                listen.insert(types::__listen().fill(*it));
             return *this;
         }
 
@@ -103,29 +104,32 @@ namespace http {
             return *this;
         }
     
-        std::pair<sockaddr_storage, socklen_t>    transform_to_sstorage(const VirtualHost& vh) {
-            addrinfo hints;
-            std::memset(&hints, 0, sizeof(hints));
-            hints.ai_family = AF_UNSPEC;
-            hints.ai_socktype = SOCK_STREAM;
-            hints.ai_flags = AI_PASSIVE;
-            std::ostringstream  port_ss;
-            port_ss << vh.get_port();
-            const std::string   port = port_ss.str();
-            addrinfo* res = NULL;
-            if (getaddrinfo(vh.get_host().c_str(), port.c_str(), &hints, &res) != 0 || !res)
-                throw std::runtime_error("getaddrinfo failed");
-            sockaddr_storage    storage;
-            std::memset(&storage, 0, sizeof(storage));
-            if (res->ai_addrlen > sizeof(storage)) {
+        std::vector<std::pair<sockaddr_storage, socklen_t> >    transform_to_sstorage(const VirtualHost& vh) {
+            std::vector<std::pair<sockaddr_storage, socklen_t> > result;
+            for (std::set<types::__listen>::const_iterator it = vh.get_listen().begin(); it != vh.get_listen().end(); ++it) {
+                addrinfo hints;
+                std::memset(&hints, 0, sizeof(hints));
+                hints.ai_family = AF_UNSPEC;
+                hints.ai_socktype = SOCK_STREAM;
+                hints.ai_flags = AI_PASSIVE;
+                std::ostringstream  port_ss;
+                port_ss << it->port;
+                const std::string   port = port_ss.str();
+                addrinfo* res = NULL;
+                if (getaddrinfo(it->host.c_str(), port.c_str(), &hints, &res) != 0 || !res)
+                    throw std::runtime_error("getaddrinfo failed");
+                sockaddr_storage    storage;
+                std::memset(&storage, 0, sizeof(storage));
+                if (res->ai_addrlen > sizeof(storage)) {
+                    freeaddrinfo(res);
+                    throw std::runtime_error("address too large for sockaddr_storage");
+                }
+                std::memcpy(&storage, res->ai_addr, res->ai_addrlen);
+                socklen_t len = static_cast<socklen_t>(res->ai_addrlen);
                 freeaddrinfo(res);
-                throw std::runtime_error("address too large for sockaddr_storage");
+                result.push_back(std::make_pair(storage, len));
             }
-            std::memcpy(&storage, res->ai_addr, res->ai_addrlen);
-            socklen_t len = static_cast<socklen_t>(res->ai_addrlen);
-            freeaddrinfo(res);
-            return std::make_pair(storage, len);
+            return result;
         }
-
     }
 }

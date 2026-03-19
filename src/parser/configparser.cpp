@@ -70,7 +70,7 @@ namespace http {
                     if ((*(it - 1))->getType() == Token::SERVER)
                         pp.push_back(__server_row_data());
                     if ((*(it - 1))->getType() == Token::LOCATION)
-                        pp.back().locations.push_back(__location_row_data());
+                        pp.back().locations.push_back(__location_row_data(pp.back()));
                 }
                 else
                     throw std::runtime_error("Unexpected '{' brace: Open brace is now allowed here");
@@ -100,8 +100,8 @@ namespace http {
             void    ConfigParser::parseProperty(std::vector<IToken*>::const_iterator& it) {
                 int prevType = (*(it - 1))->getType();
                 if (!(blockState & Token::SERVER || blockState & Token::LOCATION)
-                        || !(prevType & Token::OPEN_BRACE || prevType & Token::SEMICOLON))
-                    throw std::runtime_error("Unexpected property here");
+                        || !(prevType & Token::OPEN_BRACE || prevType & Token::SEMICOLON || prevType & Token::COMMENT))
+                    throw std::runtime_error("Unexpected property");
             }
 
             void    ConfigParser::parseLocationPropery(std::vector<IToken *> &tokens
