@@ -21,18 +21,21 @@ jobs:
         cd test/server
         ls -l
         make
+        ls -l
 
     - name: Build lexical tests
       run: |
         cd test/lexical
         ls -l
         make
+        ls -l
 
     - name: Build syntax tests
       run: |
         cd test/syntax
         ls -l
         make
+        ls -l
 
     - name: Run server tests
       run: cd test/server && ./test
