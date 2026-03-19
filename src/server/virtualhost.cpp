@@ -9,7 +9,7 @@ namespace http {
 
         VirtualHost VirtualHost::build(const config::parser::__server_row_data& data, const std::vector<VirtualHost>& servers) {
             return VirtualHost()
-                    .set_listen(data.listen)
+                    .set_listen(data.listen, servers)
                     .set_server_names(data.server_name, servers)
                     .set_error_pages(data.error_pages)
                     .set_index(data.index)
@@ -21,10 +21,9 @@ namespace http {
                     .set_locations(data.locations);
         }
 
-        VirtualHost& VirtualHost::set_listen(const std::set<std::string>& data) {
-            
+        VirtualHost& VirtualHost::set_listen(const std::set<std::string>& data, const std::vector<VirtualHost>& servers) {
             for (std::set<std::string>::const_iterator it = data.begin(); it != data.end(); ++it)
-                listen.insert(types::__listen().fill(*it));
+                listen.insert(types::__listen().fill(*it, servers));
             return *this;
         }
 

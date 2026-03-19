@@ -23,7 +23,7 @@ namespace http {
         class VirtualHost {
             public:
                 static VirtualHost build(const config::parser::__server_row_data&, const std::vector<VirtualHost>&);
-                VirtualHost& set_listen(const std::set<std::string>& data);
+                VirtualHost& set_listen(const std::set<std::string>& data, const std::vector<VirtualHost>&);
                 VirtualHost& set_server_names(const std::set<std::string>& data, const std::vector<VirtualHost>& servers);
                 VirtualHost& set_error_pages(const std::map<std::set<std::string>, std::string>& data);
                 VirtualHost& set_index(const std::set<std::string>& data);

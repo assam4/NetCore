@@ -9,7 +9,7 @@ namespace   http {
     namespace   core {
         namespace   types {
 
-            __listen&    __listen::fill(std::string field) {
+            __listen&    __listen::fill(std::string field, const std::vector<VirtualHost>& servers) {
                 if (field.empty())
                     return *this;
                 else if (field[0] == '[')  set_ipv6(field);
@@ -20,6 +20,10 @@ namespace   http {
                     set_port(field);
                 }
                 if (!field.empty()) throw std::runtime_error("Incorrect remaining part of a line: '" + field + " '.");
+                default_server = true;
+                for (std::vector<VirtualHost>::const_iterator it = servers.begin(); it != servers.end(); ++it)
+                    if (it->get_listen().find(*this) != it->get_listen().end())
+                        default_server = false;
                 return *this;
             }
 

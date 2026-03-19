@@ -32,7 +32,7 @@ namespace   http {
                     __listen(): host("0.0.0.0"), port(80), default_server(false) {}
                     bool    operator<(const __listen& other) const throw() { return (host == other.host) ? (port < other.port) : (host < other.host); }
                     bool    operator==(const __listen& other) const throw() { return host == other.host && port == other.port; }
-                    __listen&    fill(std::string);
+                    __listen&    fill(std::string, const std::vector<VirtualHost>&);
                 private:
                     void    set_ipv6(std::string&);
                     void    set_ipv4(std::string&);
