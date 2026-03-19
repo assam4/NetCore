@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -Wall -Wextra -Werror --std=c++98  -I../../include -I../../include/lexer
-SRC = ../../src/lexer/tokenize_factory.cpp  test_token_dump.cpp
+SRC = ../../src/lexer/tokenize_factory.cpp  test.cpp
 TARGET = test
 
 all: $(TARGET)
