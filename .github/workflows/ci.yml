@@ -19,29 +19,35 @@ jobs:
     - name: Build server tests
       run: |
         cd test/server
-        ls -l
-        make
-        ls -l
+        ls -l >> ../../ci_output.txt
+        make >> ../../ci_output.txt 2>&1
+        ls -l >> ../../ci_output.txt
 
     - name: Build lexical tests
       run: |
         cd test/lexical
-        ls -l
-        make
-        ls -l
+        ls -l >> ../../ci_output.txt
+        make >> ../../ci_output.txt 2>&1
+        ls -l >> ../../ci_output.txt
 
     - name: Build syntax tests
       run: |
         cd test/syntax
-        ls -l
-        make
-        ls -l
+        ls -l >> ../../ci_output.txt
+        make >> ../../ci_output.txt 2>&1
+        ls -l >> ../../ci_output.txt
 
     - name: Run server tests
-      run: cd test/server && ./test
+      run: cd test/server && ./test >> ../../ci_output.txt 2>&1
 
     - name: Run lexical tests
-      run: cd test/lexical && ./test
+      run: cd test/lexical && ./test >> ../../ci_output.txt 2>&1
 
     - name: Run syntax tests
-      run: cd test/syntax && ./test
+      run: cd test/syntax && ./test >> ../../ci_output.txt 2>&1
+
+    - name: Upload CI output
+      uses: actions/upload-artifact@v3
+      with:
+        name: ci_output
+        path: ci_output.txt
