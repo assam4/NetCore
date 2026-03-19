@@ -47,7 +47,7 @@ jobs:
       run: cd test/syntax && ./test >> ../../ci_output.txt 2>&1
 
     - name: Upload CI output
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ci_output
         path: ci_output.txt
