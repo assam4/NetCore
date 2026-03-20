@@ -71,11 +71,11 @@ namespace http {
 
             class ConfigParser {
                 public:
-                    static std::vector<__server_row_data> parse(std::vector<IToken *>& tokens);
+                    static std::vector<__server_row_data> parse(std::vector<IToken *>&);
                 private:
-                    typedef typename std::vector<IToken*>::const_iterator const_iter;
+                    static void parseComment(std::vector<IToken*>::const_iterator&, std::vector<IToken *>&);
                     static void parseKeyword(int);
-                    static void parseOpenBrace(std::vector<IToken *>& tokens, std::vector<__server_row_data>&, std::vector<IToken *>::const_iterator&);
+                    static void parseOpenBrace(std::vector<IToken *>&, std::vector<__server_row_data>&, std::vector<IToken *>::const_iterator&);
                     static void parseCloseBrace(std::vector<IToken *>::const_iterator&);
                     static void parseSemicolon(std::vector<IToken *>::const_iterator&);
                     static void parseProperty(std::vector<IToken *>::const_iterator&);
@@ -88,8 +88,7 @@ namespace http {
                                                     , std::vector<IToken *>::const_iterator&);
                     static void parseValue(std::vector<IToken *>&
                                             , std::vector<__server_row_data>&
-                                            , std::vector<IToken *>::const_iterator& 
-                                            , int type);
+                                            , std::vector<IToken *>::const_iterator&);
                     static void setSharedProperty(std::vector<IToken*>&
                                             , std::vector<IToken*>::const_iterator&
                                             , __shared_row_data*);
