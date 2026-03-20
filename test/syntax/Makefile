@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++98 -Wall -Wextra -Werror -fsanitize=address -I../../include -I../../include/lexer -I../../include/parser
-SRC = test.cpp ../../src/parser/configparser.cpp ../../src/lexer/tokenize_factory.cpp
+SRC = test_1.cpp ../../src/parser/configparser.cpp ../../src/lexer/tokenize_factory.cpp
 OBJ = $(SRC:%.cpp=%.o)
 TARGET = test
 

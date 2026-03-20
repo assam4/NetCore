@@ -8,6 +8,8 @@ namespace http {
             int         ConfigParser::blockState = Token::UNKNOWN;
             bool        ConfigParser::singleServerMode = true;
 
+            #include <iostream>
+
             std::vector<__server_row_data> ConfigParser::parse(std::vector<IToken *>& Tokens) {
                 std::vector<__server_row_data>  pp;
                 blockState = Token::UNKNOWN;
@@ -196,10 +198,10 @@ namespace http {
 
             void    ConfigParser::setServerProperty(std::vector<IToken *> &Tokens, __server_row_data& data, std::vector<IToken *>::const_iterator &it) {
                 int type = (*(it - 1))->getType();
-                for (;(it + 1) != Tokens.end() && (*(it + 1))->getType() == Token::VALUE; ++it)
+                for (;(it) != Tokens.end() && (*it)->getType() == Token::VALUE; ++it)
                     switch(type) {
                         case Token::LISTEN:
-                            data.listen.insert((*it)->getValue());
+                                data.listen.insert((*it)->getValue());
                             break;
                         case Token::SERVER_NAME:
                             data.server_name.insert((*it)->getValue());
