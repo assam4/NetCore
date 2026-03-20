@@ -61,7 +61,7 @@ namespace   http {
             struct  __content {
                 std::map<uint16_t, std::string> error_pages;
                 std::set<std::string>   index;
-                std::set<std::string>   allowed_methods;
+                bool   allowed_methods[3];
                 std::string root;
                 size_t  client_max_body_size;
                 bool autoindex;
@@ -83,14 +83,14 @@ namespace   http {
             */
             struct  __route {
                 std::string path;
-                std::string modifier;
+                std::string modifier;  // need to validate
                 uint16_t    code;
                 std::string new_path;
 
                 __route(): code(0) {}
 
                 void    fill_redirection(const std::pair<std::string, std::string>&);
-                void    fill_location_path(const std::string& data) { path = data; }
+                void    fill_location_path(const std::string&);
                 void    fill_location_modifier(const std::string& data) { modifier = data; }
             };
 
@@ -104,11 +104,11 @@ namespace   http {
             struct  __location {
                 __route                 route;
                 __content               content;
-                std::set<std::string>   cgi_extension;
+                std::set<std::string>   cgi_extension; // need to validate
                 std::string             upload_location;
 
                 void    fill_cgi_extension(const std::set<std::string>& data)  { cgi_extension = data; }
-                void    fill_upload_location(const std::string& data)           { upload_location = data; }
+                void    fill_upload_location(const std::string&);
             };
 
         }

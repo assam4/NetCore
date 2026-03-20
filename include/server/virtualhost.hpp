@@ -40,7 +40,7 @@ namespace http {
                 const std::vector<std::string>& get_server_name() const { return server_name.server_name; }
                 const std::map<uint16_t, std::string>& get_error_pages() const { return content.error_pages; }
                 const std::set<std::string>& get_index() const { return content.index; }
-                const std::set<std::string>& get_allowed_methods() const { return content.allowed_methods; }
+                const bool* get_allowed_methods() const { return content.allowed_methods; }
                 const std::string& get_root() const { return content.root; }
                 size_t get_max_body_size() const { return content.client_max_body_size; }
                 bool get_autoindex() const { return content.autoindex; }
