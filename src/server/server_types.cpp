@@ -172,8 +172,16 @@ namespace   http {
                 else
                     path = data.substr(pos - 1);
             }
+     
+            void    __route::fill_location_modifier(const std::string& data) {
+                if (!data.empty()) {
+                    if (data != "=")
+                        throw std::runtime_error("Parsing error: Incorrect location modifier: '" + data + "'.\n");
+                    else
+                        modifier = data;
+                }
+            }
 
-        
             void    __location::fill_upload_location(const std::string& data) {
                 if (data.empty())
                     return;
@@ -185,6 +193,15 @@ namespace   http {
                 else
                     upload_location = data.substr(pos - 1);
             }
+
+            void    __location::fill_cgi_extension(const std::set<std::string>& data) {
+                for(std::set<std::string>::const_iterator it = data.begin(); it != data.end(); ++it)
+                    if (*it != ".php" && *it != ".py")
+                        throw std::runtime_error("Parsing error: Incorrect cgi extension: '" + *it + "'.\n");
+                    else
+                        cgi_extension.insert(*it);
+            }
+
 
         }
     }

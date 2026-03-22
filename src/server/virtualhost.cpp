@@ -34,8 +34,7 @@ namespace http {
             return *this;
         }
 
-        VirtualHost& VirtualHost::set_server_names(const std::set<std::string>& data,
-                                                               const std::vector<VirtualHost>& servers) {
+        VirtualHost& VirtualHost::set_server_names(const std::set<std::string>& data, const std::vector<VirtualHost>& servers) {
             std::set<std::string> mutable_names = data;
             server_name.fill_server_names(mutable_names, servers);
             return *this;

@@ -91,7 +91,7 @@ namespace   http {
 
                 void    fill_redirection(const std::pair<std::string, std::string>&);
                 void    fill_location_path(const std::string&);
-                void    fill_location_modifier(const std::string& data) { modifier = data; }
+                void    fill_location_modifier(const std::string&);
             };
 
             /**
@@ -104,10 +104,10 @@ namespace   http {
             struct  __location {
                 __route                 route;
                 __content               content;
-                std::set<std::string>   cgi_extension; // need to validate
+                std::set<std::string>   cgi_extension;
                 std::string             upload_location;
 
-                void    fill_cgi_extension(const std::set<std::string>& data)  { cgi_extension = data; }
+                void    fill_cgi_extension(const std::set<std::string>&);
                 void    fill_upload_location(const std::string&);
             };
 

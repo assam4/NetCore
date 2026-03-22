@@ -143,15 +143,15 @@ namespace http {
 				bool    isGet = false;
 				if (tokens.empty())
 					return false;
-				if (tokens.back()->getType() == Token::LOCATION_MODIFIER) {
-					tokens.back()->setType(Token::LOCATION_PATH);
+				if (tokens.back()->getType() == Token::LOCATION_PATH) {
+					tokens.back()->setType(Token::LOCATION_MODIFIER);
 					isGet = true;
 				}
 				else if (tokens.back()->getType() ==  Token::LOCATION) {
 					isGet = true;
 				}
 				if (isGet) {
-					tokens.push_back(new Token(Token::LOCATION_MODIFIER, str.substr(0, pos)));
+					tokens.push_back(new Token(Token::LOCATION_PATH, str.substr(0, pos)));
 					str.erase(0, pos);
 					return true;
 				}
