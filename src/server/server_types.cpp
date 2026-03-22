@@ -23,7 +23,7 @@ namespace   http {
                     set_port(field);
                 }
                 if (!field.empty()) 
-                    throw std::runtime_error("Parsing error: Incorrect remaining part of a line: '" + field + " '.");
+                    throw std::runtime_error("Parsing error: Invalid remaining part of a line: '" + field + " '.\n");
                 default_server = true;
                 for (std::vector<VirtualHost>::const_iterator it = servers.begin(); it != servers.end(); ++it)
                     if (it->get_listen().find(*this) != it->get_listen().end())
@@ -34,7 +34,7 @@ namespace   http {
             void    __listen::set_ipv6(std::string& field) {
                 size_t  end = field.find_first_of(']', 1);
                 if (end == std::string::npos)
-                        throw std::runtime_error("Parsing error: Ivalid listen field: '" + field + " '.");
+                        throw std::runtime_error("Parsing error: Invalid listen field: '" + field + " '.\n");
                     host = field.substr(1, end - 1);
                     field.erase(0, end + 1);
             }
@@ -56,7 +56,7 @@ namespace   http {
                 for(; end < field.length() && std::isdigit(static_cast<unsigned char>(field[end])); ++end) ;
                 int port = std::atoi(field.c_str());
                 if (port < 1 || port > 65535 || end > 5)
-                    throw std::runtime_error("Parsing error: Port must be in in range 1-65535");
+                    throw std::runtime_error("Parsing error: Port must be in in range 1-65535.\n");
                 this->port = port;
                 field.erase(0, end);
             } 
@@ -72,13 +72,13 @@ namespace   http {
             void    __content::fill_error_pages(const std::map<std::set<std::string>, std::string>& data) {
                 for ( std::map<std::set<std::string>, std::string>::const_iterator mit = data.begin(); mit != data.end(); ++mit) {
                     if (mit->second.empty() || mit->second[0] != '/')
-                        throw std::runtime_error("Parsing error: Invalid error_pages path: '" + mit->second + "\'");
+                        throw std::runtime_error("Parsing error: Invalid error_pages path: '" + mit->second + "'.n");
                      for (std::set<std::string>::const_iterator it = mit->first.begin(); it != mit->first.end(); ++it) {
                         if ((*it).empty() || (*it).length() != 3)
-                            throw std::runtime_error("Parsing error: Invalid err_pages: '" + (*it) + "\'");
+                            throw std::runtime_error("Parsing error: Invalid err_pages: '" + (*it) + "'.\n");
                         int err = std::atoi((*it).c_str());
-                        if (err < 300 || err > 599)
-                            throw std::runtime_error("Parsing error: Invalid err_pages: " + (*it) + "\'");
+                        if (err < 400 || err > 599)
+                            throw std::runtime_error("Parsing error: Invalid err_pages: " + (*it) + "'.\n");
                         error_pages[static_cast<uint16_t>(err)] = mit->second;
                      }
                 }
@@ -101,18 +101,21 @@ namespace   http {
                             allowed_methods[0] = true;
                         else if (*it == "POST")
                             allowed_methods[1] = true;
-                        else if (*it == "DEL")
+                        else if (*it == "DELETE" || *it == "DEL")
                             allowed_methods[2] = true;
                         else
-                            throw std::runtime_error("Parsing error: Unexpected allowed method: '" + *it + "\'");
+                            throw std::runtime_error("Parsing error: Unexpected allowed method: '" + *it + "'.\n");
                     }
             }
 
             void    __content::fill_root(const std::string& data) {
                 if (data.empty())
                     root = "html";
-                else
+                else {
+                    if (data[0] != '/')
+                        throw std::runtime_error("Parsing error: Invalid root field: '" + data + "'.\n");
                     root = data;
+                }
              }
 
             void    __content::fill_max_body_size(const std::string& data) {
@@ -122,14 +125,15 @@ namespace   http {
                 }
                 size_t  end = data.find_first_not_of("0123456789");
                 if (end != std::string::npos && end != data.length() - 1)
-                    throw std::runtime_error("Parsing error: Invalid client_max_body field: '" + data + "\'");
+                    throw std::runtime_error("Parsing error: Invalid client_max_body field: '" + data + "'.\n");
                 size_t  num = std::atoi(data.c_str());
                 if (end != std::string::npos)
-                    switch(data[end]) {
+                    switch (data[end]) {
                         case 'g':   num = num * 1024 * 1024 * 1024; break;
-                        case 'm':   num = num * 1024 * 1024;        break ;
-                        case 'k':   num = num * 1024;               break ;
-                        default:    throw std::runtime_error("Parsing error: Invalid client_max_body field: " + data + "\'");
+                        case 'm':   num = num * 1024 * 1024; break;
+                        case 'k':   num = num * 1024; break;
+                        case 'b':   break;
+                        default:    throw std::runtime_error("Parsing error: Invalid client_max_body field: " + data + "'.\n");
                     }
                 client_max_body_size = num;
             }
@@ -140,7 +144,7 @@ namespace   http {
                     else if (data == "on")
                         autoindex = true;
                     else
-                        throw std::runtime_error("Parsing error: Invalid autoindex field: '" + data + "\'");
+                        throw std::runtime_error("Parsing error: Invalid autoindex field: '" + data + "'.\n");
             }
 
             void    __route::fill_redirection(const std::pair<std::string, std::string>& data) {
@@ -149,8 +153,8 @@ namespace   http {
                     return ;
                 }
                 int num = std::atoi(data.first.c_str());
-                if (data.first.length() != 3 || !(num > 200 && num < 600))
-                    throw std::runtime_error("Parsing error: Ivalid Redirection code: '" + data.first + "\'");
+                if (data.first.length() != 3 || !(num > 300 && num < 400))
+                    throw std::runtime_error("Parsing error: Ivalid Redirection code: '" + data.first + "'.\n");
                 else {
                     code = num;
                     new_path = data.second;
@@ -161,11 +165,12 @@ namespace   http {
                 if (data.empty())
                     return;
                 if (data[0] != '/')
-                    throw std::runtime_error("Parsing error: Incorrect location upload path: '" + data + "\'");
+                    throw std::runtime_error("Parsing error: Incorrect location upload path: '" + data + "'.\n");
                 size_t pos = data.find_first_not_of('/');
                 if (pos == std::string::npos)
-                    throw std::runtime_error("Parsing error: Incorrect location upload path: '" + data + "\'");
-                path = data.substr(pos - 1);
+                    path = "/";
+                else
+                    path = data.substr(pos - 1);
             }
 
         
@@ -173,11 +178,12 @@ namespace   http {
                 if (data.empty())
                     return;
                 if (data[0] != '/')
-                    throw std::runtime_error("Parsing error: Incorrect location upload path: '" + data + "\'");
+                    throw std::runtime_error("Parsing error: Incorrect location upload path: '" + data + "'.\n");
                 size_t pos = data.find_first_not_of('/');
                 if (pos == std::string::npos)
-                    throw std::runtime_error("Parsing error: Incorrect location upload path: '" + data + "\'");
-                upload_location = data.substr(pos - 1);
+                    upload_location = "/";
+                else
+                    upload_location = data.substr(pos - 1);
             }
 
         }

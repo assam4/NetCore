@@ -22,8 +22,15 @@ namespace http {
         }
 
         VirtualHost& VirtualHost::set_listen(const std::set<std::string>& data, const std::vector<VirtualHost>& servers) {
-            for (std::set<std::string>::const_iterator it = data.begin(); it != data.end(); ++it)
-                listen.insert(types::__listen().fill(*it, servers));
+            for (std::set<std::string>::const_iterator it = data.begin(); it != data.end(); ++it) {
+                if (it->compare(0, 9, "localhost") == 0) {
+                    listen.insert(types::__listen().fill("127.0.0.1" + (*it).substr(9), servers));
+                    listen.insert(types::__listen().fill("[::1]" + (*it).substr(9), servers));
+
+                }
+                else
+                    listen.insert(types::__listen().fill(*it, servers));
+            }
             return *this;
         }
 
