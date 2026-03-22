@@ -8,14 +8,17 @@ namespace http {
             int         ConfigParser::blockState = Token::UNKNOWN;
             bool        ConfigParser::singleServerMode = true;
 
+            #include <iostream>
+
             std::vector<__server_row_data> ConfigParser::parse(std::vector<IToken *>& Tokens) {
+                std::vector<__server_row_data>  pp;
                 blockState = Token::UNKNOWN;
                 singleServerMode = true;
-                std::vector<__server_row_data> pp;
-                for (const_iter it = Tokens.begin(); it != Tokens.end(); ++it) {
+                for (std::vector<IToken*>::const_iterator   it = Tokens.begin(); it != Tokens.end(); ++it) {
                     int type = (*it)->getType();
                     switch (type) {
                         case Token::COMMENT:
+                            parseComment(it, Tokens);
                             break;
                         case Token::HTTP: case Token::SERVER: case Token::LOCATION:
                             parseKeyword(type);
@@ -39,15 +42,23 @@ namespace http {
                             parseLocationPropery(Tokens, pp, it);
                             break ;
                         case Token::VALUE:
-                                parseValue(Tokens, pp, it, type);
+                                parseValue(Tokens, pp, it);
                             break;
                         default:
-                            throw std::runtime_error("Unexpected Token!");
+                            throw std::runtime_error("Syntax error: Unrecognized token detected.\n");
                     }
                 }
                 if (blockState)
-                    throw std::runtime_error("Unclosed braces!");
+                    throw std::runtime_error("Syntax error: Unclosed braces detected.\n");
                 return pp;
+            }
+
+            void    ConfigParser::parseComment(std::vector<IToken*>::const_iterator& it , std::vector<IToken *>& tokens) {
+                if (it != tokens.begin()) {
+                    int prevType = (*(it - 1))->getType();
+                    if (!(prevType & Token::OPERATOR) && prevType != Token::COMMENT)
+                        throw std::runtime_error("Syntax error: Unexpected comment(#) detected in this context.\n");
+                }
             }
 
             void    ConfigParser::parseKeyword(int type) {
@@ -58,26 +69,23 @@ namespace http {
                 else if ((blockState & ((type >> 1) & ~Token::KEYWORD)) && !(blockState & (type & ~Token::KEYWORD)))
                     blockState |= type;
                 else
-                    throw std::runtime_error("Unexpected keyword block:Keyword is not allowed in this context");
-            }
+                    throw std::runtime_error("Syntax error: Unexpected token keyword detected in this context.\n");
+            } 
 
-            void    ConfigParser::parseOpenBrace(std::vector<IToken *>& tokens
-                                                , std::vector<__server_row_data>& pp
-                                                , std::vector<IToken*>::const_iterator& it) {
-                if (it == tokens.begin())
-                    throw std::runtime_error("Unexpected '{' brace: Open brace is now allowed here");
-                if (((*(it - 1))->getType() & Token::KEYWORD)) {
-                    if ((*(it - 1))->getType() == Token::SERVER)
+            void    ConfigParser::parseOpenBrace(std::vector<IToken *>& tokens, std::vector<__server_row_data>& pp, std::vector<IToken*>::const_iterator& it) {
+                if (it != tokens.begin()) {
+                    int prevType = (*(it - 1))->getType();
+                    if (prevType == Token::SERVER)
                         pp.push_back(__server_row_data());
-                    if ((*(it - 1))->getType() == Token::LOCATION)
-                        pp.back().locations.push_back(__location_row_data());
+                    else if (prevType == Token::LOCATION)
+                        pp.back().locations.push_back(__location_row_data(pp.back()));
                 }
                 else
-                    throw std::runtime_error("Unexpected '{' brace: Open brace is now allowed here");
+                    throw std::runtime_error("Syntax error: Unexpected '{' brace in this context.\n");
             }
 
             void    ConfigParser::parseCloseBrace(std::vector<IToken*>::const_iterator& it) {
-                if (blockState && ((*(it - 1))->getType() & Token::OPERATOR)) {
+                if (blockState && (((*(it - 1))->getType() & Token::OPERATOR) || ((*(it - 1))->getType() & Token::COMMENT))) {
                     if (blockState & (1 << 8))
                         blockState &= ~(1 << 8);
                     else if (blockState & (1 << 7))
@@ -88,25 +96,26 @@ namespace http {
                         blockState = Token::UNKNOWN;
                 }
                 else
-                    throw std::runtime_error("Unexpected '}' brace: Close brace is now allowed here");
+                    throw std::runtime_error("Syntax error: Unexpected '}' brace in this context.\n");
             }
 
             void    ConfigParser::parseSemicolon(std::vector<IToken*>::const_iterator& it) {
                 int prevType = (*(it - 1))->getType();
                 if (!(prevType & Token::VALUE) && !(prevType & Token::CLOSE_BRACE))
-                    throw std::runtime_error("Unexpected ';' operator: Semicolon is now allowed here");
+                    throw std::runtime_error("Syntax error: Unexpected  semicolon(';')  in this context.\n");
             }
 
             void    ConfigParser::parseProperty(std::vector<IToken*>::const_iterator& it) {
-                int prevType = (*(it - 1))->getType();
-                if (!(blockState & Token::SERVER || blockState & Token::LOCATION)
-                        || !(prevType & Token::OPEN_BRACE || prevType & Token::SEMICOLON))
-                    throw std::runtime_error("Unexpected property here");
+                if ((blockState & Token::SERVER) || (blockState & Token::LOCATION)) {
+                    int prevType = (*(it - 1))->getType();
+                    if (prevType == Token::OPEN_BRACE || prevType == Token::SEMICOLON || prevType == Token::COMMENT)
+                        return;
+                }
+                else
+                    throw std::runtime_error("Syntax error: Unexpected field(property) in this context.\n");
             }
 
-            void    ConfigParser::parseLocationPropery(std::vector<IToken *> &tokens
-                                                        , std::vector<__server_row_data> &pp
-                                                        , std::vector<IToken *>::const_iterator &it) {
+            void    ConfigParser::parseLocationPropery(std::vector<IToken *> &tokens, std::vector<__server_row_data> &pp, std::vector<IToken *>::const_iterator &it) {
                 if (it != tokens.begin() && (*(it - 1))->getType() != Token::LOCATION_MODIFIER)
                     pp.back().locations.push_back(__location_row_data());
                 __location_row_data& current = pp.back().locations.back();
@@ -116,38 +125,34 @@ namespace http {
                     current.modifier = (*it)->getValue(); 
             }
 
-            void    ConfigParser::parseValue(std::vector<IToken *> &Tokens
-                                            , std::vector<__server_row_data> &pp
-                                            , std::vector<IToken *>::const_iterator &it
-                                            , int type) {
-                (void)type;
+            void    ConfigParser::parseValue(std::vector<IToken *> &Tokens, std::vector<__server_row_data> &pp, std::vector<IToken *>::const_iterator &it) {
+                if (pp.empty() || !blockState)
+                    throw std::runtime_error("Syntax error: Unexpected value in this context (outside of blocks).\n");
                 int prevType = (*(it - 1))->getType();
-                if (pp.empty() || !blockState || !(prevType & Token::PROPERTY))
-                    throw std::runtime_error("Unexpected value here");
-                else if ((blockState & (Token::SERVER & ~Token::PROPERTY))
-                            && !(blockState & (1 << 8))
+                if (!(prevType & Token::PROPERTY))
+                    throw std::runtime_error("Syntax error: Unexpected value in this context. (previous is not a property).\n");
+                else if ((blockState & (Token::SERVER & ~Token::PROPERTY)) && !(blockState & (1 << 8))
                             && (prevType == Token::LISTEN || prevType == Token::SERVER_NAME))
                     setServerProperty(Tokens, pp.back(), it);               
                 else if ((blockState & (Token::LOCATION & ~Token::PROPERTY))
                             && (prevType == Token::CGI_EXTENSION || prevType == Token::UPLOAD_LOCATION))
                     setLocationProperty(Tokens, pp.back().locations.back(), it);
-                else if ((blockState & (Token::SERVER & ~Token::PROPERTY))
-                            || (blockState & (Token::LOCATION & ~Token::PROPERTY)))
-                    setSharedProperty(Tokens, it,
-                        (blockState & (Token::SERVER & ~Token::PROPERTY))
-                            ? static_cast<__shared_row_data*>(&pp.back())
-                            : static_cast<__shared_row_data*>(&pp.back().locations.back()));
+                else if (blockState & (1 << 8))  // in LOCATION block
+                    setSharedProperty(Tokens, it, static_cast<__shared_row_data*>(&pp.back().locations.back()));
+                else if (blockState & (1 << 7))   // in SERVER block
+                    setSharedProperty(Tokens, it, static_cast<__shared_row_data*>(&pp.back()));
                 else
-                    throw std::runtime_error("Unexpected value here");
+                    throw std::runtime_error("Syntax error: Unexpected value in this context.\n");
             }
 
-            void    ConfigParser::setSharedProperty(std::vector<IToken *> &tokens
-                                            , std::vector<IToken *>::const_iterator &it
-                                            , __shared_row_data *ptr) {
-                if (!ptr) {
-                    throw std::runtime_error("Null pointer passed to setSharedProperty");
-                }
+            void    ConfigParser::parse_error_pages(std::vector<IToken *> &tokens, std::vector<IToken *>::const_iterator &it, __shared_row_data *ptr) {   
+                std::set<std::string>   key;
+                for (; (it + 1) != tokens.end() && (*(it + 1))->getType() == Token::VALUE; ++it)
+                    key.insert((*it)->getValue());
+                ptr->error_pages[key] = (*it)->getValue();
+            }
 
+            void    ConfigParser::setSharedProperty(std::vector<IToken *> &tokens, std::vector<IToken *>::const_iterator &it, __shared_row_data *ptr) {
                 int type = (*(it - 1))->getType();
                 while (true) {
                     switch (type) {
@@ -156,10 +161,9 @@ namespace http {
                             break;
                         case Token::ERROR_PAGE:
                             if (it + 1 != tokens.end() && (*(it + 1))->getType() == Token::VALUE) {
-                                ptr->error_pages.insert(std::make_pair((*it)->getValue(), (*(it + 1))->getValue()));
-                                ++it;
+                                parse_error_pages(tokens, it, ptr);
                             } else {
-                                throw std::runtime_error("Unexpected value in error_page property");
+                                throw std::runtime_error("Syntax error: Unexpected error_page properties value in this context.\n");
                             }
                             break;
                         case Token::ALLOWED_METHODS:
@@ -176,14 +180,14 @@ namespace http {
                                 ptr->ret_redirection = std::make_pair((*it)->getValue(), (*(it + 1))->getValue());
                                 ++it;
                             } else {
-                                throw std::runtime_error("Unexpected value in return property");
+                                throw std::runtime_error("Syntax error: Unexpected return properties value in this context.\n");
                             }
                             break;
                         case Token::AUTOINDEX:
                             ptr->autoindex = (*it)->getValue();
                             break;
                         default:
-                            throw std::runtime_error("Unexpected error in shared setter!");
+                            throw std::runtime_error("Syntax error: Unexpected property in shared property parsing.\n");
                     }
                     if ((it + 1) != tokens.end() && (*(it + 1))->getType() == Token::VALUE)
                         ++it;
@@ -192,37 +196,24 @@ namespace http {
                 }
             }
 
-            void    ConfigParser::setServerProperty(std::vector<IToken *> &Tokens
-                                                    , __server_row_data& data
-                                                    , std::vector<IToken *>::const_iterator &it) {
-                if (it == Tokens.begin())
-                    throw std::runtime_error("setServerProperty called with invalid iterator");
+            void    ConfigParser::setServerProperty(std::vector<IToken *> &Tokens, __server_row_data& data, std::vector<IToken *>::const_iterator &it) {
                 int type = (*(it - 1))->getType();
-                while (true) {
+                for (;(it) != Tokens.end() && (*it)->getType() == Token::VALUE; ++it)
                     switch(type) {
                         case Token::LISTEN:
-                            data.listen.insert((*it)->getValue());
+                                data.listen.insert((*it)->getValue());
                             break;
                         case Token::SERVER_NAME:
                             data.server_name.insert((*it)->getValue());
                             break;
                         default:
-                            throw std::runtime_error("Unexpected Server Property");
+                            throw std::runtime_error("Syntex error: Unexpected property in server block.\n");
                     }
-                    if ((it + 1) != Tokens.end() && (*(it + 1))->getType() == Token::VALUE)
-                        ++it;
-                    else
-                        break;
-                }
             }
 
-            void    ConfigParser::setLocationProperty(std::vector<IToken *> &Tokens
-                                                    , __location_row_data& data
-                                                    , std::vector<IToken *>::const_iterator& it) {
-                if (it == Tokens.begin())
-                    throw std::runtime_error("setLocationProperty called with invalid iterator");
+            void    ConfigParser::setLocationProperty(std::vector<IToken *> &Tokens, __location_row_data& data, std::vector<IToken *>::const_iterator& it) {
                 int type = (*(it - 1))->getType();
-                while (true) {
+                for (; (it + 1) != Tokens.end() && (*(it + 1))->getType() == Token::VALUE; ++it )
                     switch(type) {
                         case Token::CGI_EXTENSION:
                             data.cgi_extension.insert((*it)->getValue());
@@ -233,12 +224,8 @@ namespace http {
                         default:
                             throw std::runtime_error("Unexpected Location Property");
                     }
-                    if ((it + 1) != Tokens.end() && (*(it + 1))->getType() == Token::VALUE)
-                        ++it;
-                    else
-                        break;
-                }
             }
+        
         }
     }
 }

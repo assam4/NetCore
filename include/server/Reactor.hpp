@@ -1,7 +1,7 @@
 #ifndef REACTOR_HPP
 # define REACTOR_HPP
 
-# include <cstdint>
+# include <stdint.h>
 # include <csignal>
 # include <map>
 # include "Server.hpp"

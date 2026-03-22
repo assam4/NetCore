@@ -21,3 +21,6 @@
 # Test executables
 test_*
 *_test
+
+# tmp files
+error_page.html

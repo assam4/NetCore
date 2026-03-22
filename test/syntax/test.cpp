@@ -36,8 +36,12 @@ void print_server(const __server_row_data& s) {
     }
     if (!s.error_pages.empty()) {
         std::cout << "  Error pages: ";
-        for (std::map<std::string, std::string>::const_iterator it = s.error_pages.begin(); it != s.error_pages.end(); ++it)
-            std::cout << it->first << ":" << it->second << " ";
+        for (std::map<std::set<std::string>, std::string>::const_iterator it = s.error_pages.begin(); it != s.error_pages.end(); ++it) {
+            std::cout << "{";
+            for (std::set<std::string>::const_iterator code = it->first.begin(); code != it->first.end(); ++code)
+                std::cout << *code << " ";
+            std::cout << "}:" << it->second << " ";
+        }
         std::cout << std::endl;
     }
     if (!s.client_max_body_size.empty())
@@ -136,6 +140,7 @@ int main() {
     if (!check_test("http { server { listen 8080; server_name example.com; root /var/www; index index.html; } }", "Valid: Full server config", true)) all_success = false;
     if (!check_test("http { server { listen 8080; location / { root /var/www; index index.html; } } }", "Valid: Server with location", true)) all_success = false;
     if (!check_test("http { server { listen 8080; error_page 404 /404.html; autoindex on; } }", "Valid: Server with error page and autoindex", true)) all_success = false;
+    if (!check_test("http { server { listen 8080; error_page 500 502 503 504 /50x.html; } }", "Valid: Server with multi-code error_page", true)) all_success = false;
 
     if (!check_test("http { listen 8080; }", "Invalid: Listen outside server", false)) all_success = false;
     if (!check_test("http { server { root /var/www; location / { listen 8080; } } }", "Invalid: Listen in location", false)) all_success = false;
