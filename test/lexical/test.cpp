@@ -30,7 +30,7 @@ bool testTokens(const std::string& name, const std::string& input, const std::ve
         std::cout << "FAIL: count mismatch: got " << tokens.size() << ", expected " << expected.size() << std::endl;
         ok = false;
     }
-    for (size_t i = 0; i < std::min(tokens.size(), expected.size()); ++i) {
+    for (std::size_t i = 0; i < std::min(tokens.size(), expected.size()); ++i) {
         int t = tokens[i]->getType();
         if (t != expected[i]) {
             std::cout << "FAIL: token " << i << ": got " << t << ", expected " << expected[i] << std::endl;

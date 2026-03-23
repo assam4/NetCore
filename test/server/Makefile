@@ -1,22 +1,45 @@
 CXX = g++
-CXXFLAGS = -std=c++98 -Wall -Wextra -Werror -fsanitize=address \
-	-I../../include -I../../include/lexer -I../../include/parser -I../../include/server
+CXXFLAGS = -Wall -Wextra -Werror -std=c++98 \
+           -I../../include \
+           -I../../include/server \
+           -I../../include/parser \
+           -I../../include/lexer \
+           -I../../include/virtual_host \
+           -pthread
 
-SRC = test.cpp \
-	../../src/server/virtualhost.cpp \
-	../../src/server/server_types.cpp \
-	../../src/parser/configparser.cpp \
-	../../src/lexer/tokenize_factory.cpp
+LDFLAGS = -pthread
 
-OBJ = $(SRC:%.cpp=%.o)
-TARGET = test
+# Source files
+SERVER_SRC = ../../src/server/Reactor.cpp \
+			 ../../src/server/Socket.cpp \
+             ../../src/server/Server.cpp \
+             ../../src/server/HttpServer.cpp \
+             ../../src/lexer/tokenize_factory.cpp \
+             ../../src/parser/configparser.cpp \
+             ../../src/virtual_host/virtualhost.cpp \
+             ../../src/virtual_host/server_types.cpp \
+              test.cpp
+
+# Object files
+SERVER_OBJ = $(SERVER_SRC:.cpp=.o)
+
+# Target
+TARGET = webserv
 
 all: $(TARGET)
 
-$(TARGET): $(OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+$(TARGET): $(SERVER_OBJ)
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ) $(TARGET)
+	rm -f $(SERVER_OBJ) $(TARGET)
 
-.PHONY: all clean
+re: clean all
+
+run: $(TARGET)
+	./$(TARGET)
+
+.PHONY: all clean re run

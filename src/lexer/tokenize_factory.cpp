@@ -84,15 +84,15 @@ namespace http {
 			static const std::string    separators = " \t\r\n{};#";
 
 			void    TokenFactory::ltrim(std::string&  str) {
-				size_t pos = str.find_first_not_of(spaces);
+				std::size_t pos = str.find_first_not_of(spaces);
 				if (pos == std::string::npos)
 					str.clear();
 				else
 					str.erase(0, pos);
 			}
 
-			size_t TokenFactory::findTokenEnd(const std::string& str, const std::string& separators) const throw() {
-				size_t pos = str.find_first_of(separators);
+			std::size_t TokenFactory::findTokenEnd(const std::string& str, const std::string& separators) const throw() {
+				std::size_t pos = str.find_first_of(separators);
 				if (pos == std::string::npos)
 					pos = str.length();
 				return pos;
@@ -109,13 +109,13 @@ namespace http {
 			}
 
 			void    TokenFactory::classifyComment(std::string& str) {
-				size_t pos = findTokenEnd(str, "\n");
+				std::size_t pos = findTokenEnd(str, "\n");
 				tokens.push_back(new Token(Token::COMMENT, str.substr(0, pos)));
 				str.erase(0, pos);
 			}
 
 			bool	TokenFactory::classifyKeyword(std::string& str) {
-				size_t  pos = findTokenEnd(str, separators);
+				std::size_t  pos = findTokenEnd(str, separators);
 				std::map<std::string, Token>::const_iterator it = TokenTypeNames::keywords.find(str.substr(0, pos));
 				if (it != TokenTypeNames::keywords.end()) {
 					tokens.push_back(new Token(it->second));
@@ -127,7 +127,7 @@ namespace http {
 			}
 
 			bool    TokenFactory::classifyProperty(std::string &str) {
-				size_t  pos = findTokenEnd(str, separators);
+				std::size_t  pos = findTokenEnd(str, separators);
 				std::map<std::string, Token>::const_iterator it = TokenTypeNames::properties.find(str.substr(0, pos));
 				if (it != TokenTypeNames::properties.end()) {
 					tokens.push_back(new Token(it->second));
@@ -139,7 +139,7 @@ namespace http {
 			}
 
 			bool    TokenFactory::classifyLocationProperty(std::string& str) {
-				size_t  pos = findTokenEnd(str, separators);
+				std::size_t  pos = findTokenEnd(str, separators);
 				bool    isGet = false;
 				if (tokens.empty())
 					return false;
@@ -165,7 +165,7 @@ namespace http {
 					return ;
 				if (classifyLocationProperty(str))
 					return ;
-				size_t pos = findTokenEnd(str, separators);
+				std::size_t pos = findTokenEnd(str, separators);
 				tokens.push_back(new Token(Token::VALUE, str.substr(0, pos)));
 				str.erase(0, pos);
 			}

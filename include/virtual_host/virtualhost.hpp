@@ -8,7 +8,7 @@
 # include <utility>
 # include <sys/socket.h>
 # include "server_types.hpp"
-# include "configparser.hpp"   
+# include "configparser.hpp"
 
 namespace http {
     namespace core {
@@ -36,7 +36,7 @@ namespace http {
                 VirtualHost& set_location_modifier(const std::string& data);
                 VirtualHost& set_locations(const std::vector<config::parser::__location_row_data>& data);
 
-                const std::set<types::__listen> get_listen() const { return listen; }
+                const std::set<types::__listen>& get_listen() const { return listen; }
                 const std::vector<std::string>& get_server_name() const { return server_name.server_name; }
                 const std::map<uint16_t, std::string>& get_error_pages() const { return content.error_pages; }
                 const std::set<std::string>& get_index() const { return content.index; }

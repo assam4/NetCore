@@ -1,121 +1,321 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <stdexcept>
+#include <cstring>
 #include <fstream>
-#include <algorithm>
+#include <sstream>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <sstream>
 
-#include "tokenize_factory.hpp"
-#include "configparser.hpp"
+#include "HttpServer.hpp"
+#include "configparser.hpp"   // your parser header
 #include "virtualhost.hpp"
+#include "config_store.hpp"
+#include "tokenize_factory.hpp"
 
-using namespace http::config::lexer;
-using namespace http::config::parser;
-using namespace http::core;
+// ─── colour helpers ───────────────────────────────────────────────────────────
+#define GREEN  "\033[32m"
+#define RED    "\033[31m"
+#define YELLOW "\033[33m"
+#define RESET  "\033[0m"
 
-// Функция для чтения файла
-std::string read_file(const std::string& filename) {
-    std::ifstream file(filename.c_str());
-    if (!file.is_open()) throw std::runtime_error("Cannot open config file: " + filename);
-    return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+static int passed = 0;
+static int failed = 0;
+
+std::string to_string(size_t value) {
+    std::ostringstream oss;
+    oss << value;
+    return oss.str();
 }
 
-// Функция для печати VirtualHost
-void print_virtualhost(const VirtualHost& vh) {
-    std::cout << "VirtualHost:" << std::endl;
-    std::cout << "  listen:";
-    std::set<types::__listen> l = vh.get_listen();
-    for (std::set<types::__listen>::const_iterator it = l.begin(); it !=l.end(); ++it)
-        std::cout << " [" << it->host << ":" << it->port << ", default=" << (it->default_server ? "true" : "false") << "]";
-    std::cout << std::endl;
-    std::cout << "  server_name:";
-    for (size_t i = 0; i < vh.get_server_name().size(); ++i)
-        std::cout << " " << vh.get_server_name()[i];
-    std::cout << std::endl;
-    std::cout << "  error_pages:";
-    for (std::map<uint16_t, std::string>::const_iterator it = vh.get_error_pages().begin(); it != vh.get_error_pages().end(); ++it)
-        std::cout << " [" << it->first << "->" << it->second << "]";
-    std::cout << std::endl;
-    std::cout << "  index:";
-    for (std::set<std::string>::const_iterator it = vh.get_index().begin(); it != vh.get_index().end(); ++it)
-        std::cout << " " << *it;
-    std::cout << std::endl;
-    std::cout << "  allowed_methods:";
-    const bool *methods = vh.get_allowed_methods();
-    for (int i = 0; i < 2; ++i)
-        std::cout << " " << methods[i];
-    std::cout << std::endl;
-    std::cout << "  root: " << vh.get_root() << std::endl;
-    std::cout << "  client_max_body_size: " << vh.get_max_body_size() << std::endl;
-    std::cout << "  autoindex: " << (vh.get_autoindex() ? "true" : "false") << std::endl;
-    std::cout << "  return: code=" << vh.get_redirect_code() << ", path=" << vh.get_redirect_path() << std::endl;
-    std::cout << "  locations: " << vh.get_locations().size() << std::endl;
-    for (size_t i = 0; i < vh.get_locations().size(); ++i) {
-        const types::__location& loc = vh.get_locations()[i];
-        std::cout << "    location[" << i << "] path=" << loc.route.path << ", modifier=" << loc.route.modifier << std::endl;
-        std::cout << "      root: " << loc.content.root << std::endl;
-        std::cout << "      autoindex: " << (loc.content.autoindex ? "true" : "false") << std::endl;
-        std::cout << "      upload_location: " << loc.upload_location << std::endl;
-        std::cout << "      cgi_extension:";
-        for (std::set<std::string>::const_iterator it = loc.cgi_extension.begin(); it != loc.cgi_extension.end(); ++it)
-            std::cout << " " << *it;
-        std::cout << std::endl;
-    }
+static void ok(const std::string& msg) {
+	std::cout << GREEN << "[PASS] " << RESET << msg << "\n";
+	++passed;
+}
+static void fail(const std::string& msg) {
+	std::cout << RED << "[FAIL] " << RESET << msg << "\n";
+	++failed;
+}
+static void section(const std::string& msg) {
+	std::cout << "\n" << YELLOW << "=== " << msg << " ===" << RESET << "\n";
 }
 
-static std::vector<VirtualHost> build_hosts(const std::vector<__server_row_data>& raw) {
-    std::vector<VirtualHost> result;
-    for (std::vector<__server_row_data>::const_iterator it = raw.begin(); it != raw.end(); ++it)
-        result.push_back(VirtualHost::build(*it, result));
-    return result;
+// ─── helper: try to connect to a port ─────────────────────────────────────────
+static bool can_connect(uint16_t port) {
+	int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+	if (fd < 0) return false;
+
+	sockaddr_in addr;
+	std::memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port   = htons(port);
+	::inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+
+	bool ok = (::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0);
+	::close(fd);
+	return ok;
 }
 
-
-int main() {
-    try {
-    // Новый тест: читаем конфиг из файла, парсим, сравниваем, печатаем
-    const std::string config_path = "../../config/default.config";
-    std::string config_data = read_file(config_path);
-    TokenFactory factory;
-    factory.extractTokens(config_data);
-    std::vector<IToken*> tokens = factory.getTokens();
-    std::vector<__server_row_data> raw = ConfigParser::parse(tokens);
-    std::vector<VirtualHost> hosts = build_hosts(raw);
-
-    std::cout << "\n--- VirtualHost dump ---\n";
-    for (size_t i = 0; i < hosts.size(); ++i) {
-        std::cout << "VirtualHost #" << i << ":\n";
-        print_virtualhost(hosts[i]);
-    }
-
-    // Пример сравнения с ожидаемым (эталонным) VirtualHost
-    bool ok = true;
-    if (!hosts.empty()) {
-        uint16_t expected_port = 8080; // замените на нужный
-        bool found = false;
-        const std::set<http::core::types::__listen>& listens = hosts[0].get_listen();
-        for (std::set<http::core::types::__listen>::const_iterator it = listens.begin(); it != listens.end(); ++it) {
-            if (it->port == expected_port) found = true;
-        }
-        ok &= found;
-        std::cout << "Check listen port: " << (found ? "PASS" : "FAIL") << std::endl;
-        // Добавьте другие проверки по аналогии
-    }
-
-    if (!ok) {
-        std::cerr << "Some server tests failed" << std::endl;
-        return 1;
-    }
-    std::cout << "All server tests passed" << std::endl;
-    if (!ok) {
-        std::cerr << "Some server tests failed" << std::endl;
-        return 1;
-    }
-    std::cout << "All server tests passed" << std::endl;
-    return 0;
+// ─── helper: check port is NOT connectable ────────────────────────────────────
+static bool port_closed(uint16_t port) {
+	return !can_connect(port);
 }
-catch (const std::exception& e) {
-    std::cerr << e.what();
-    return 1;
-}
+
+int main(int argc, char* argv[]) {
+	if (argc < 2) {
+		std::cerr << "usage: " << argv[0] << " <config_file>\n";
+		return 1;
+	}
+
+	// ── 1. Parse config ───────────────────────────────────────────────────────
+	section("Config parsing");
+	std::vector<http::config::parser::__server_row_data> raw_config;
+	try {
+		// Read config file into string
+		std::ifstream config_file(argv[1]);
+		if (!config_file.is_open())
+			throw std::runtime_error("Cannot open config file");
+
+		std::stringstream buffer;
+		buffer << config_file.rdbuf();
+		std::string config_content = buffer.str();
+		config_file.close();
+
+		// Tokenize the config content
+		http::config::lexer::TokenFactory tokenizer;
+		tokenizer.extractTokens(config_content);
+		std::vector<http::config::lexer::IToken*> tokens = tokenizer.getTokens();
+
+		// Parse tokens
+		raw_config = http::config::parser::ConfigParser::parse(tokens);
+		ok("Config file parsed without exception");
+	} catch (const std::exception& e) {
+		fail(std::string("Config parse threw: ") + e.what());
+		return 1;
+	}
+
+	if (raw_config.size() >= 2)
+		ok("Found 2 server blocks");
+	else
+		fail("Expected 2 server blocks, got " + to_string(raw_config.size()));
+
+	// ── 2. Build VirtualHosts ─────────────────────────────────────────────────
+	section("VirtualHost construction");
+	std::vector<http::core::VirtualHost> vhosts;
+	try {
+		vhosts = http::core::ConfigStore::collect(raw_config);
+		ok("ConfigStore::collect() succeeded");
+	} catch (const std::exception& e) {
+		fail(std::string("collect() threw: ") + e.what());
+		return 1;
+	}
+
+	// server 1 — check listen ports
+	{
+		const std::set<http::core::types::__listen>& l = vhosts[0].get_listen();
+		// conf has: listen 80 20 40; listen 8080;  → ports 80,20,40,8080
+		bool has_80   = false, has_20 = false, has_40 = false, has_8080 = false;
+		for (std::set<http::core::types::__listen>::const_iterator it = l.begin();
+			 it != l.end(); ++it) {
+			if (it->port == 80)   has_80   = true;
+			if (it->port == 20)   has_20   = true;
+			if (it->port == 40)   has_40   = true;
+			if (it->port == 8080) has_8080 = true;
+		}
+		has_80   ? ok("Server1 listens on port 80")   : fail("Server1 missing port 80");
+		has_20   ? ok("Server1 listens on port 20")   : fail("Server1 missing port 20");
+		has_40   ? ok("Server1 listens on port 40")   : fail("Server1 missing port 40");
+		has_8080 ? ok("Server1 listens on port 8080") : fail("Server1 missing port 8080");
+	}
+
+	// server 1 — server_name
+	{
+		const std::vector<std::string>& names = vhosts[0].get_server_name();
+		bool has_example = false, has_www = false;
+		for (size_t i = 0; i < names.size(); ++i) {
+			if (names[i] == "example.com")     has_example = true;
+			if (names[i] == "www.example.com") has_www     = true;
+		}
+		has_example ? ok("Server1 has server_name example.com")
+					: fail("Server1 missing server_name example.com");
+		has_www     ? ok("Server1 has server_name www.example.com")
+					: fail("Server1 missing server_name www.example.com");
+	}
+
+	// server 1 — root
+	{
+		vhosts[0].get_root() == "/var/www/html"
+			? ok("Server1 root = /var/www/html")
+			: fail("Server1 root wrong: " + vhosts[0].get_root());
+	}
+
+	// server 1 — client_max_body_size (10m = 10*1024*1024)
+	{
+		size_t expected = 10 * 1024 * 1024;
+		vhosts[0].get_max_body_size() == expected
+			? ok("Server1 client_max_body_size = 10m")
+			: fail("Server1 client_max_body_size wrong");
+	}
+
+	// server 1 — locations count
+	{
+		vhosts[0].get_locations().size() >= 7
+			? ok("Server1 has 7+ location blocks")
+			: fail("Server1 locations count wrong: "
+				   + to_string(vhosts[0].get_locations().size()));
+	}
+
+	// server 1 — check specific locations
+	{
+		const std::vector<http::core::types::__location>& locs = vhosts[0].get_locations();
+		bool has_root_loc    = false;
+		bool has_api         = false;
+		bool has_upload      = false;
+		bool has_old_path    = false;
+		bool has_static      = false;
+
+		for (size_t i = 0; i < locs.size(); ++i) {
+			const std::string& p = locs[i].route.path;
+			if (p == "/")         has_root_loc = true;
+			if (p == "/api")      has_api      = true;
+			if (p == "/upload")   has_upload   = true;
+			if (p == "/old_path") has_old_path = true;
+			if (p == "/static")   has_static   = true;
+
+			// check upload location field
+			if (p == "/upload" && locs[i].upload_location == "/tmp/uploads")
+				ok("Upload location path = /tmp/uploads");
+			else if (p == "/upload" && locs[i].upload_location != "/tmp/uploads")
+				fail("Upload location path wrong: " + locs[i].upload_location);
+
+			// check redirect
+			if (p == "/old_path") {
+				locs[i].route.code == 301
+					? ok("Redirect /old_path code = 301")
+					: fail("Redirect /old_path code wrong");
+				locs[i].route.new_path == "/new_path"
+					? ok("Redirect /old_path target = /new_path")
+					: fail("Redirect /old_path target wrong: " + locs[i].route.new_path);
+			}
+
+			// check autoindex on for /static
+			if (p == "/static") {
+				locs[i].content.autoindex
+					? ok("/static autoindex = on")
+					: fail("/static autoindex should be on");
+			}
+		}
+
+		has_root_loc ? ok("Location / found")        : fail("Location / missing");
+		has_api      ? ok("Location /api found")     : fail("Location /api missing");
+		has_upload   ? ok("Location /upload found")  : fail("Location /upload missing");
+		has_old_path ? ok("Location /old_path found"): fail("Location /old_path missing");
+		has_static   ? ok("Location /static found")  : fail("Location /static missing");
+	}
+
+	// server 2 checks
+	{
+		if (vhosts.size() >= 2) {
+			const std::set<http::core::types::__listen>& l = vhosts[1].get_listen();
+			bool has_8081 = false;
+			for (std::set<http::core::types::__listen>::const_iterator it = l.begin();
+				 it != l.end(); ++it)
+				if (it->port == 8081) has_8081 = true;
+
+			has_8081 ? ok("Server2 listens on port 8081")
+					 : fail("Server2 missing port 8081");
+
+			const std::vector<std::string>& names = vhosts[1].get_server_name();
+			bool has_api_name = false;
+			for (size_t i = 0; i < names.size(); ++i)
+				if (names[i] == "api.example.com") has_api_name = true;
+			has_api_name ? ok("Server2 server_name = api.example.com")
+						 : fail("Server2 server_name wrong");
+
+			vhosts[1].get_root() == "/var/www/api"
+				? ok("Server2 root = /var/www/api")
+				: fail("Server2 root wrong: " + vhosts[1].get_root());
+		}
+	}
+
+	// ── 3. HttpServer::init() — socket binding ────────────────────────────────
+	section("Socket binding (HttpServer::init)");
+	HttpServer server;
+	try {
+		server.init(raw_config);
+		ok("HttpServer::init() completed without exception");
+	} catch (const std::exception& e) {
+		fail(std::string("init() threw: ") + e.what());
+		return 1;
+	}
+
+	// check ports are actually bound and accepting
+	can_connect(80)   ? ok("Port 80 is bound and accepting")
+					  : fail("Port 80 not reachable");
+	can_connect(8080) ? ok("Port 8080 is bound and accepting")
+					  : fail("Port 8080 not reachable");
+	can_connect(8081) ? ok("Port 8081 is bound and accepting")
+					  : fail("Port 8081 not reachable");
+
+	// port that should NOT be bound
+	port_closed(9999) ? ok("Port 9999 correctly not bound")
+					  : fail("Port 9999 is open — unexpected");
+
+	// ── 4. match_vhost ────────────────────────────────────────────────────────
+	section("VirtualHost matching");
+
+	// exact server_name match
+	{
+		const http::core::VirtualHost* v = server.match_vhost(8080, "example.com");
+		v != NULL
+			? ok("match_vhost(8080, example.com) found a vhost")
+			: fail("match_vhost(8080, example.com) returned NULL");
+		if (v)
+			v->get_root() == "/var/www/html"
+				? ok("Matched correct vhost (root=/var/www/html)")
+				: fail("Matched wrong vhost");
+	}
+
+	// www subdomain
+	{
+		const http::core::VirtualHost* v = server.match_vhost(8080, "www.example.com");
+		v != NULL ? ok("match_vhost(8080, www.example.com) found vhost")
+				  : fail("match_vhost(8080, www.example.com) returned NULL");
+	}
+
+	// server2 domain on its port
+	{
+		const http::core::VirtualHost* v = server.match_vhost(8081, "api.example.com");
+		v != NULL
+			? ok("match_vhost(8081, api.example.com) found vhost")
+			: fail("match_vhost(8081, api.example.com) returned NULL");
+		if (v)
+			v->get_root() == "/var/www/api"
+				? ok("Matched server2 correctly")
+				: fail("Matched wrong server for api.example.com");
+	}
+
+	// unknown host → default_server fallback
+	{
+		const http::core::VirtualHost* v = server.match_vhost(8080, "unknown.com");
+		v != NULL ? ok("match_vhost fallback to default_server works")
+				  : fail("match_vhost returned NULL for unknown host");
+	}
+
+	// wrong port → NULL
+	{
+		const http::core::VirtualHost* v = server.match_vhost(9999, "example.com");
+		v == NULL ? ok("match_vhost(9999, ...) correctly returns NULL")
+				  : fail("match_vhost returned vhost for unbound port 9999");
+	}
+
+	// ── 5. Summary ────────────────────────────────────────────────────────────
+	section("Summary");
+	std::cout << GREEN << passed << " passed" << RESET
+			  << "  " << RED << failed << " failed" << RESET << "\n\n";
+
+	return failed == 0 ? 0 : 1;
 }

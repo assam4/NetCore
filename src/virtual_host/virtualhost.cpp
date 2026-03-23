@@ -1,7 +1,7 @@
 #include <sstream>
 #include <stdexcept>
-#include <cstring> 
-#include <netdb.h>  
+#include <cstring>
+#include <netdb.h>
 #include "virtualhost.hpp"
 
 namespace http {
@@ -108,7 +108,7 @@ namespace http {
             }
             return *this;
         }
-    
+
         std::vector<std::pair<sockaddr_storage, socklen_t> >    transform_to_sstorage(const VirtualHost& vh) {
             std::vector<std::pair<sockaddr_storage, socklen_t> > result;
             for (std::set<types::__listen>::const_iterator it = vh.get_listen().begin(); it != vh.get_listen().end(); ++it) {

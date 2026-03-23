@@ -1,20 +1,20 @@
 #ifndef TOKENIZE_FACTORY_HPP
 # define TOKENIZE_FACTORY_HPP
 
-# include <map> 
+# include <map>
 # include "itokenize_factory.hpp"
 
 namespace http {
     namespace config {
         namespace lexer {
-            
+
             /**
             *   @class Token
             *   @brief Concrete token implementation for configuration parsing.
             *   @details Represents a single lexical token extracted from a configuration file.
             *          Supports type classification using bitwise flags and provides value storage.
             *          Used as the concrete product in the tokenization factory pattern.
-            */      
+            */
 
             namespace TokenTypeNames {
                 extern const std::map<int, std::string> names;
@@ -76,7 +76,7 @@ namespace http {
                     std::vector<IToken*>  getTokens() const;
                 private:
                     void    ltrim(std::string&);
-                    size_t  findTokenEnd(const std::string&, const std::string&) const throw();
+                    std::size_t  findTokenEnd(const std::string&, const std::string&) const throw();
                     void    classifyOperation(std::string&);
                     void    classifyComment(std::string&);
                     bool    classifyKeyword(std::string&);
