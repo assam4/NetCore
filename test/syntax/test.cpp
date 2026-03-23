@@ -135,7 +135,7 @@ int main() {
     if (!check_test("http { server { } } }", "Invalid: Extra closing brace at end", false)) all_success = false;
     if (!check_test("http { server { location / {  }", "Invalid: Unclosed location brace", false)) all_success = false;
     if (!check_test("http { server { } } http { server { } }", "Invalid: Multiple http blocks", false)) all_success = false;
-
+    if (!check_test("http { server { location /upload { upload_location /tmp/uploads; } } }", "Valid: Upload location directive", true)) all_success = false;
     // Тесты с конфигами
     if (!check_test("http { server { listen 8080; server_name example.com; root /var/www; index index.html; } }", "Valid: Full server config", true)) all_success = false;
     if (!check_test("http { server { listen 8080; location / { root /var/www; index index.html; } } }", "Valid: Server with location", true)) all_success = false;

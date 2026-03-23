@@ -9,9 +9,9 @@
 
 namespace   http {
     namespace core {
-        
+
         class   VirtualHost;
-        
+
         namespace types {
             /**
             * @struct __listen
@@ -25,7 +25,7 @@ namespace   http {
                     uint16_t    port;
                     bool        default_server; //  last become a default
                     /* for future project expansion
-                    bool    multi_user_port; 
+                    bool    multi_user_port;
                     bool    ipv6_only;
                     bool    ssl; */
 
@@ -38,7 +38,7 @@ namespace   http {
                     void    set_ipv4(std::string&);
                     void    set_port(std::string&);
             };
-        
+
             /**
             * @struct __serv_name
             * @brief Holds server name (domain) aliases for virtual host matching.
@@ -48,7 +48,7 @@ namespace   http {
             struct  __serv_name {
                 std::vector<std::string>    server_name;
 
-                void  fill_server_names(std::set<std::string>&, const std::vector<http::core::VirtualHost>&);
+                void  fill_server_names(std::set<std::string>&, const std::vector<VirtualHost>&);
             };
 
             /**
@@ -73,7 +73,7 @@ namespace   http {
                 void    fill_max_body_size(const std::string&);
                 void    fill_autoindex(const std::string&);
             };
-        
+
             /**
             * @struct __route
             * @brief Represents a location routing rule with optional redirects.

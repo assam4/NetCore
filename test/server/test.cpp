@@ -243,7 +243,7 @@ int main(int argc, char* argv[]) {
 
 	// ── 3. HttpServer::init() — socket binding ────────────────────────────────
 	section("Socket binding (HttpServer::init)");
-	HttpServer server;
+	http::core::HttpServer server;
 	try {
 		server.init(raw_config);
 		ok("HttpServer::init() completed without exception");

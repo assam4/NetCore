@@ -22,7 +22,7 @@ namespace   http {
                         field.erase(0, 1);
                     set_port(field);
                 }
-                if (!field.empty()) 
+                if (!field.empty())
                     throw std::runtime_error("Parsing error: Invalid remaining part of a line: '" + field + " '.\n");
                 default_server = true;
                 for (std::vector<VirtualHost>::const_iterator it = servers.begin(); it != servers.end(); ++it)
@@ -59,9 +59,9 @@ namespace   http {
                     throw std::runtime_error("Parsing error: Port must be in in range 1-65535.\n");
                 this->port = port;
                 field.erase(0, end);
-            } 
-        
-            void    __serv_name::fill_server_names(std::set<std::string>& data, const std::vector<http::core::VirtualHost>& servers) {
+            }
+
+            void    __serv_name::fill_server_names(std::set<std::string>& data, const std::vector<VirtualHost>& servers) {
                 (void)servers;
                 if (data.empty())
                     server_name.push_back("");
@@ -83,14 +83,14 @@ namespace   http {
                      }
                 }
             }
-        
+
             void    __content::fill_index(const std::set<std::string>& data) {
                 if (data.empty())
                     index.insert("index.html");
                 else
                     index = data;
             }
-         
+
             void    __content::fill_allowed_methods(const std::set<std::string>& data) {
                  std::memset(&allowed_methods, 0, sizeof(3));
                 if (data.empty())
@@ -137,7 +137,7 @@ namespace   http {
                     }
                 client_max_body_size = num;
             }
-                
+
             void    __content::fill_autoindex(const std::string& data) {
                     if (data.empty() || data == "off")
                         autoindex = false;
@@ -172,7 +172,7 @@ namespace   http {
                 else
                     path = data.substr(pos - 1);
             }
-     
+
             void    __route::fill_location_modifier(const std::string& data) {
                 if (!data.empty()) {
                     if (data != "=")
@@ -201,8 +201,6 @@ namespace   http {
                     else
                         cgi_extension.insert(*it);
             }
-
-
         }
     }
 }

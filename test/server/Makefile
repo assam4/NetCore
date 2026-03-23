@@ -24,7 +24,7 @@ SERVER_SRC = ../../src/server/Reactor.cpp \
 SERVER_OBJ = $(SERVER_SRC:.cpp=.o)
 
 # Target
-TARGET = webserv
+TARGET = test
 
 all: $(TARGET)
 

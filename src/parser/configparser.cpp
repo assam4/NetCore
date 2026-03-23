@@ -29,7 +29,7 @@ namespace http {
                         case Token::CLOSE_BRACE:
                             parseCloseBrace(it);
                             break;
-                        case Token::SEMICOLON:                                                                                      
+                        case Token::SEMICOLON:
                             parseSemicolon(it);
                             break;
                         case Token::INDEX: case Token::ERROR_PAGE: case Token::ALLOWED_METHODS: case Token::ROOT:
@@ -70,7 +70,7 @@ namespace http {
                     blockState |= type;
                 else
                     throw std::runtime_error("Syntax error: Unexpected token keyword detected in this context.\n");
-            } 
+            }
 
             void    ConfigParser::parseOpenBrace(std::vector<IToken *>& tokens, std::vector<__server_row_data>& pp, std::vector<IToken*>::const_iterator& it) {
                 if (it != tokens.begin()) {
@@ -122,7 +122,7 @@ namespace http {
                 if ((*it)->getType() == Token::LOCATION_PATH)
                     current.path = (*it)->getValue();
                 else
-                    current.modifier = (*it)->getValue(); 
+                    current.modifier = (*it)->getValue();
             }
 
             void    ConfigParser::parseValue(std::vector<IToken *> &Tokens, std::vector<__server_row_data> &pp, std::vector<IToken *>::const_iterator &it) {
@@ -133,7 +133,7 @@ namespace http {
                     throw std::runtime_error("Syntax error: Unexpected value in this context. (previous is not a property).\n");
                 else if ((blockState & (Token::SERVER & ~Token::PROPERTY)) && !(blockState & (1 << 8))
                             && (prevType == Token::LISTEN || prevType == Token::SERVER_NAME))
-                    setServerProperty(Tokens, pp.back(), it);               
+                    setServerProperty(Tokens, pp.back(), it);
                 else if ((blockState & (Token::LOCATION & ~Token::PROPERTY))
                             && (prevType == Token::CGI_EXTENSION || prevType == Token::UPLOAD_LOCATION))
                     setLocationProperty(Tokens, pp.back().locations.back(), it);
@@ -145,7 +145,7 @@ namespace http {
                     throw std::runtime_error("Syntax error: Unexpected value in this context.\n");
             }
 
-            void    ConfigParser::parse_error_pages(std::vector<IToken *> &tokens, std::vector<IToken *>::const_iterator &it, __shared_row_data *ptr) {   
+            void    ConfigParser::parse_error_pages(std::vector<IToken *> &tokens, std::vector<IToken *>::const_iterator &it, __shared_row_data *ptr) {
                 std::set<std::string>   key;
                 for (; (it + 1) != tokens.end() && (*(it + 1))->getType() == Token::VALUE; ++it)
                     key.insert((*it)->getValue());
@@ -191,7 +191,7 @@ namespace http {
                     }
                     if ((it + 1) != tokens.end() && (*(it + 1))->getType() == Token::VALUE)
                         ++it;
-                    else 
+                    else
                         break;
                 }
             }
@@ -213,7 +213,7 @@ namespace http {
 
             void    ConfigParser::setLocationProperty(std::vector<IToken *> &Tokens, __location_row_data& data, std::vector<IToken *>::const_iterator& it) {
                 int type = (*(it - 1))->getType();
-                for (; (it + 1) != Tokens.end() && (*(it + 1))->getType() == Token::VALUE; ++it )
+                for (; it != Tokens.end() && (*it)->getType() == Token::VALUE; ++it )
                     switch(type) {
                         case Token::CGI_EXTENSION:
                             data.cgi_extension.insert((*it)->getValue());
@@ -225,7 +225,7 @@ namespace http {
                             throw std::runtime_error("Unexpected Location Property");
                     }
             }
-        
+
         }
     }
 }
