@@ -37,8 +37,8 @@ jobs:
         make >> ../../ci_output.txt 2>&1
         ls -l >> ../../ci_output.txt
 
-    - name: Run server tests
-      run: cd test/server && ./test >> ../../ci_output.txt 2>&1
+    - name: Run vhosts tests
+      run: cd test/vhosts && ./test >> ../../ci_output.txt 2>&1
 
     - name: Run lexical tests
       run: cd test/lexical && ./test >> ../../ci_output.txt 2>&1
