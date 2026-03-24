@@ -93,8 +93,10 @@ namespace   http {
 
             void    __content::fill_allowed_methods(const std::set<std::string>& data) {
                  std::memset(&allowed_methods, 0, sizeof(3));
-                if (data.empty())
-                    return;
+                if (data.empty()) {
+                    for (int i = 0; i < 3; ++i)
+                        allowed_methods[i] = true;
+                }
                 else
                     for (std::set<std::string>::const_iterator  it = data.begin(); it != data.end(); ++it) {
                         if (*it == "GET")
