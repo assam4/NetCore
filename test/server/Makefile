@@ -4,7 +4,7 @@ CXXFLAGS = -Wall -Wextra -Werror -std=c++98 \
            -I../../include/server \
            -I../../include/parser \
            -I../../include/lexer \
-           -I../../include/virtual_host \
+           -I../../include/vhosts \
            -pthread
 
 LDFLAGS = -pthread
@@ -16,8 +16,8 @@ SERVER_SRC = ../../src/server/Reactor.cpp \
              ../../src/server/HttpServer.cpp \
              ../../src/lexer/tokenize_factory.cpp \
              ../../src/parser/configparser.cpp \
-             ../../src/virtual_host/virtualhost.cpp \
-             ../../src/virtual_host/server_types.cpp \
+             ../../src/vhosts/virtualhost.cpp \
+             ../../src/vhosts/server_types.cpp \
               test.cpp
 
 # Object files

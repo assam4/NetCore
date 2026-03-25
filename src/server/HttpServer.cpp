@@ -1,7 +1,14 @@
 #include "HttpServer.hpp"
-#include <sys/epoll.h>
 #include <csignal>
 #include "config_store.hpp"
+
+#if defined(__linux__)
+# include <sys/epoll.h>
+#elif defined(__APPLE__) || defined(__FreeBSD__)
+# include <sys/event.h>
+# else
+	#error "Unsupported platform!"
+#endif
 
 namespace http {
 	namespace core {
@@ -43,7 +50,11 @@ namespace http {
 					ss->listen();
 					_server.add_socket(ss);
 					AcceptHandler* ah = new AcceptHandler(raw_fd, _server, _dispatcher);
-					_dispatcher.register_handler(ah, EPOLLIN);
+					#if defined(__linux__)
+						_dispatcher.register_handler(ah, EPOLLIN);
+					#elif defined(__APPLE__) || defined(FreeBSD__)
+						_dispatcher.register_handler(ah, EVFILT_READ);
+					#endif
 				}
 			}
 		}
