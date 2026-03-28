@@ -51,6 +51,12 @@ namespace   http {
                 void  fill_server_names(std::set<std::string>&, const std::vector<VirtualHost>&);
             };
 
+
+            enum    Methods {
+                GET = 1 << 0,
+                POST = 1 << 1,
+                DEL = 1 << 2
+            };
             /**
             * @struct __content
             * @brief Contains all HTTP response configuration and content delivery settings.
@@ -61,9 +67,9 @@ namespace   http {
             struct  __content {
                 std::map<uint16_t, std::string> error_pages;
                 std::set<std::string>   index;
-                bool   allowed_methods[3];
                 std::string root;
                 size_t  client_max_body_size;
+                uint8_t allowed_methods;
                 bool autoindex;
 
                 void    fill_error_pages(const std::map<std::set<std::string>, std::string>&);

@@ -41,9 +41,9 @@ void print_virtualhost(const VirtualHost& vh) {
         std::cout << " " << *it;
     std::cout << std::endl;
     std::cout << "  allowed_methods:";
-    const bool *methods = vh.get_allowed_methods();
+    uint8_t methods = vh.get_allowed_methods();
     for (int i = 0; i < 2; ++i)
-        std::cout << " " << methods[i];
+        std::cout << " " << (methods & (1 << i));
     std::cout << std::endl;
     std::cout << "  root: " << vh.get_root() << std::endl;
     std::cout << "  client_max_body_size: " << vh.get_max_body_size() << std::endl;

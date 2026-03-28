@@ -92,19 +92,17 @@ namespace   http {
             }
 
             void    __content::fill_allowed_methods(const std::set<std::string>& data) {
-                 std::memset(&allowed_methods, 0, sizeof(3));
-                if (data.empty()) {
-                    for (int i = 0; i < 3; ++i)
-                        allowed_methods[i] = true;
-                }
+                allowed_methods = 0;
+                if (data.empty())
+                    allowed_methods = GET | POST | DEL ;
                 else
                     for (std::set<std::string>::const_iterator  it = data.begin(); it != data.end(); ++it) {
                         if (*it == "GET")
-                            allowed_methods[0] = true;
+                            allowed_methods |= GET;
                         else if (*it == "POST")
-                            allowed_methods[1] = true;
+                            allowed_methods |= POST;
                         else if (*it == "DELETE" || *it == "DEL")
-                            allowed_methods[2] = true;
+                            allowed_methods |= DEL;
                         else
                             throw std::runtime_error("Parsing error: Unexpected allowed method: '" + *it + "'.\n");
                     }
