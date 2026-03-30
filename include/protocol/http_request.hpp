@@ -7,9 +7,10 @@
 # include <string>
 # include <exception>
 # include "server_types.hpp"
+# include "http_types.hpp"
 
 namespace http {
-    namespace core {
+	namespace core {
 
         class Request {
             public:
@@ -19,7 +20,7 @@ namespace http {
                     std::string body;
                     std::string version;
                     std::string uri;
-                    uint8_t method; 
+                    uint8_t method;
                 };
                 static  std::pair<uint16_t, __http_request> parse_message(const std::string&, size_t);
             private:
