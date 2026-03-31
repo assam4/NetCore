@@ -1,4 +1,7 @@
 #include "http_response.hpp"
+#include <fstream>
+#include <ctime>
+#include <sstream>
 
 namespace http {
 	namespace core {
@@ -86,6 +89,109 @@ namespace http {
 			if (it != _phrases.end())
 				return it->second;
 			return "Unknown";
+		}
+
+		std::string Response::read_file(const std::string& path) {
+			std::ifstream file(path.c_str());
+			if (!file.is_open())
+				return "";
+			std::stringstream ss;
+			ss << file.rdbuf();
+			return ss.str();
+		}
+
+		void Response::make_error(_http_response& res,types::HttpStatus status) {
+			if (status != types::OK)
+				res._status = status;
+			res._headers["Content-Type"] = "text/html";
+			std::stringstream ss;
+			ss << status;
+			std::string path = "../utils/" + ss.str() + ".html";
+			std::string body = read_file(path);
+			if (body.empty()) {
+				ss.clear();
+				ss << "<html><body><h1>" << status << " Error</h1></body></html>";
+				body = ss.str();
+			}
+			res._body = body;
+		}
+
+		void Response::set_connection_field(_http_response& res, const Request::__http_request& req) {
+			std::string conn_value;
+			std::map<std::string, std::vector<std::string> >::const_iterator it = req.headers.find("Connection");
+			if (it != req.headers.end()) {
+				bool has_close = false;
+				bool has_keep_alive = false;
+
+				for (std::vector<std::string>::const_iterator vit = it->second.begin(); vit != it->second.end(); ++vit) {
+					std::string token = *vit;
+					for (size_t i = 0; i < token.size(); ++i)
+						token[i] = tolower(token[i]);
+					if (token.find("close") != std::string::npos)
+						has_close = true;
+					else if (token.find("keep-alive") != std::string::npos)
+						has_keep_alive = true;
+				}
+				if (has_close)
+					conn_value = "close";
+				else if (has_keep_alive && req.version == "HTTP/1.1")
+					conn_value = "keep-alive";
+				else
+					conn_value = "close";
+			} else {
+				if (req.version == "HTTP/1.1")
+					conn_value = "keep-alive";
+				else
+					conn_value = "close";
+			}
+			res._headers["Connection"] = conn_value;
+		}
+
+		void Response::set_server_field(_http_response& res) {
+			res._headers["Server"] = "webserv";
+		}
+
+		void Response::set_date_field(Response::_http_response& res) {
+			std::time_t t = std::time(NULL);
+			std::tm* gmt = std::gmtime(&t);
+			char date[100];
+			std::strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S GMT", gmt);
+			res._headers["Date"] = std::string(date);
+		}
+
+		void Response::set_body_length_field(Response::_http_response& res) {
+			bool is_http_1_1 = (res._version == "HTTP/1.1");
+			std::string connection = "close";
+			std::map<std::string, std::string>::const_iterator it = res._headers.find("Connection");
+			if (it != res._headers.end())
+				connection = it->second;
+			bool body_known = !res._body.empty();
+			if (is_http_1_1) {
+				if (body_known) {
+					std::stringstream ss;
+					ss << res._body.size();
+					res._headers["Content-Length"] = ss.str();
+				} else {
+					if (connection == "keep-alive")
+						res._headers["Transfer-Encoding"] = "chunked";
+				}
+			} else {
+				if (body_known) {
+					std::stringstream ss;
+					ss << res._body.size();
+					res._headers["Content-Length"] = ss.str();
+				} else {
+					res._headers["Connection"] = "close";
+				}
+			}
+		}
+
+		Response::_http_response Response::make_response(const std::pair<types::HttpStatus, Request::__http_request>& req) {
+			Response::_http_response res;
+
+			res._version = req.second.version;
+			set_connection_field(res, req.second);
+			res.
 		}
 	}
 }
