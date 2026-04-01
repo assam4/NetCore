@@ -3,8 +3,16 @@
 #include <sstream>
 #include <cctype>
 
+
+
 namespace http {
     namespace core {
+
+        const static size_t RequestLineLength = 8192; // 8KB
+        const static size_t URILength = 4096; // 4KB
+        const static size_t SingleHeaderLength = 8192; // 8KB
+        const static size_t HeadersLength = 32768; // 32KB
+        const static size_t DefaultMaxBodyLength = 1024;// 1KB
 
         void    Request::parse_method(Request::__http_request& hr, const std::string& line, size_t& position) {
             if (line.compare(0, 3, "GET") == 0) {
@@ -20,47 +28,90 @@ namespace http {
                 position = (line[3] == 'E') ? 6 : 3;
             }
             else
-                throw std::invalid_argument("Request error: Invalid request method(unauthorized API).\n");
+                throw 400;
+        }
+
+        static void fill_querry(Request::__http_request& hr, size_t position) {
+            while (position < hr.uri.size()) {
+                size_t eq = hr.uri.find_first_of('=', position);
+                if (eq == std::string::npos)    throw 400;
+                std::string key = hr.uri.substr(position, eq - position);
+                if (key.empty())    throw 400;
+                position = eq + 1;
+                eq = hr.uri.find_first_of('&', position);
+                std::string value = (eq == std::string::npos) ? hr.uri.substr(position)
+                                                                : hr.uri.substr(position, eq - position);
+                hr.querry[key] = value;
+                if (eq == std::string::npos)
+                    break;
+                position = eq + 1;
+            }
+        }
+
+        static void validate_uri(Request::__http_request& hr) {
+            size_t position = 0;
+            if (hr.uri.compare(0, 7, "http://") == 0)
+                position = 7;
+            if (position) {
+                size_t end_pos = hr.uri.find_first_of('/', position);
+                if (end_pos == std::string::npos)
+                    throw 400;
+                position = end_pos;
+            }
+            if (hr.uri[position] != '/')
+                throw 400;
+            size_t  query_start = hr.uri.find_first_of('?', position);
+            if (query_start == std::string::npos)
+                return;
+            position = query_start + 1;
+            fill_querry(hr, position);
+            hr.uri.erase(query_start);
         }
 
         void    Request::parse_uri(Request::__http_request& hr, const std::string& line, size_t& position) {
-            if (!std::isspace(line[position]))
-                throw std::invalid_argument("Request error: There is no separator between method and uri!.\n");
+            if (position >= line.size() || !std::isspace(line[position]))
+                throw 400;
             ++position;
             size_t  end_pos = line.find_first_of(' ', position);
             if (end_pos == std::string::npos)
-                throw std::invalid_argument("Request error: There is no separator between uri and protocol!.\n");
-            if (line[position] != '/')
-                throw std::invalid_argument("Request error: invalid uri form!.\n");
+                throw 400;
             hr.uri = line.substr(position, end_pos - position);
             position = end_pos + 1;
+            if (hr.uri.empty())
+                throw 400;
+            if (hr.uri.length() > URILength)
+                throw 414;
+            validate_uri(hr);
         }
 
         void    Request::parse_protocol(Request::__http_request& hr, const std::string& line, size_t& position) {
             size_t  end_pos = line.find_first_of('/', position);
             if (end_pos == std::string::npos)
-                throw std::invalid_argument("Request error: There is no protocol version!.\n");
+                throw 400;
             if (line.compare(position, end_pos - position, "HTTP"))
-                throw std::invalid_argument("Request error: Unsupported protocol!.\n");
+                throw 505;
             ++end_pos;
             hr.version = line.substr(end_pos, line.length() - end_pos);
             hr.version.erase(3, 1);
             if (hr.version != "1.0" && hr.version != "1.1")
-                throw std::invalid_argument("Request error: Unsupported http protocol version!.\n");
+                throw 505;
         }
 
         void    Request::parse_start_line(std::stringstream& os, Request::__http_request& hr) {
-            std::string line;
             size_t  position = 0;
+            std::string line;
             std::getline(os, line);
             if (line.empty())
-                throw std::invalid_argument("Request error: empty message!.\n");
+                throw 400;
+            if (line.length() > RequestLineLength)
+                throw 414;
             parse_method(hr, line, position);
             parse_uri(hr, line, position);
             parse_protocol(hr, line, position);
         }
 
         void    Request::parse_headers(std::stringstream& os, Request::__http_request& hr) {
+            size_t  length = 0;
             bool    host_status = (hr.version == "1.1") ? false : true;
             std::string line;
             while (std::getline(os, line)) {
@@ -68,11 +119,14 @@ namespace http {
                     line.erase(line.size()-1);
                 if (line.empty())
                     break;
+                length += line.length();
+                if (length > HeadersLength || line.length() > SingleHeaderLength)
+                    throw 431;
                 if (std::isspace(line[0]))
-                    throw std::invalid_argument("Request error: invalid header in request1!.\n");
+                    throw 400;
                 size_t sep = line.find_first_of(":");
                 if (sep == std::string::npos)
-                    throw std::invalid_argument("Request error: invalid header in request2!.\n");
+                    throw 400;
                 std::string key = line.substr(0, sep);
                 key.erase(key.find_last_not_of(" \t\r\n") + 1);
                 ++sep;
@@ -84,22 +138,22 @@ namespace http {
                 (hr.headers[key]).push_back(value);
             }
             if (!host_status)
-                throw std::invalid_argument("Request error: There is no 'Host' header in current HTTP/1.1 protocol.!\n");
+                throw 400;
         }
 
-        void    Request::parse_body(std::stringstream& os, Request::__http_request& hr) {
+        void    Request::parse_body(std::stringstream& os, Request::__http_request& hr, size_t max_body_size) {
             std::string body((std::istreambuf_iterator<char>(os)), std::istreambuf_iterator<char>());
             size_t pos = 0;
             while (pos < body.size() && (body[pos] == '\r' || body[pos] == '\n'))
                 ++pos;
             hr.body = body.substr(pos);
+            if (hr.body.length() > max_body_size)
+                throw 413;
             if (hr.method == types::GET && !hr.body.empty())
-                throw std::invalid_argument("Request error: Get request can't contain a body!.\n");
-            if (hr.method == types::POST && hr.body.empty())
-                throw std::invalid_argument("Request error: Post request must have a body!.\n");
+                throw 400;
         }
 
-        std::pair<uint16_t, Request::__http_request> Request::parse_message(const std::string& message) {
+        std::pair<uint16_t, Request::__http_request> Request::parse_message(const std::string& message, size_t max_body_size = DefaultMaxBodyLength) {
             Request::__http_request  hr;
             uint16_t    status_code = 200;
             try {
@@ -107,18 +161,15 @@ namespace http {
                 os << message;
                 parse_start_line(os, hr);
                 parse_headers(os, hr);
-                parse_body(os, hr);
+                parse_body(os, hr, max_body_size);
             }
-            catch(const std::invalid_argument& e) {
-                std::cerr << e.what() << std::endl;
-                status_code = 400;
+            catch(int n) {
+                status_code = static_cast<uint16_t>(n);
             }
             catch(...) {
-                std::cerr << "Request error: Unknown exception!.\n";
                 status_code = 400;
             }
             return std::make_pair(status_code, hr);
         }
-
     }
 }

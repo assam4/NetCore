@@ -77,7 +77,7 @@ int main() {
     const std::pair<uint16_t, Request::__http_request> origin_result = Request::parse_message(origin_request, 1024);
     ok = expect_eq("origin status", origin_result.first, static_cast<uint16_t>(200)) && ok;
     ok = expect_eq("origin method", origin_result.second.method, static_cast<uint8_t>(types::GET)) && ok;
-    ok = expect_eq("origin uri", origin_result.second.uri, "/index.html?lang=ru&page=2") && ok;
+    ok = expect_eq("origin uri", origin_result.second.uri, "/index.html") && ok;
     ok = expect_eq("origin version", origin_result.second.version, "1.1") && ok;
     ok = expect_eq("origin host", get_first_header(origin_result.second, "Host"), "example.com") && ok;
     ok = expect_eq("origin query lang", get_query_value(origin_result.second, "lang"), "ru") && ok;
@@ -92,7 +92,7 @@ int main() {
     ok = expect_eq("absolute status", absolute_result.first, static_cast<uint16_t>(200)) && ok;
     ok = expect_eq("absolute method", absolute_result.second.method, static_cast<uint8_t>(types::GET)) && ok;
     ok = expect_eq("absolute uri", absolute_result.second.uri,
-                   "http://example.com/products/list?cat=books&sort=asc") && ok;
+                   "http://example.com/products/list") && ok;
     ok = expect_eq("absolute version", absolute_result.second.version, "1.0") && ok;
     ok = expect_eq("absolute query cat", get_query_value(absolute_result.second, "cat"), "books") && ok;
     ok = expect_eq("absolute query sort", get_query_value(absolute_result.second, "sort"), "asc") && ok;
