@@ -1,41 +1,158 @@
 #include "http_request.hpp"
 #include <iostream>
-#include <cassert>
+#include <string>
 
 using namespace http::core;
 
+static bool expect_eq(const std::string& label, const std::string& actual, const std::string& expected) {
+    if (actual != expected) {
+        std::cout << "[FAIL] " << label << " expected='" << expected << "' actual='" << actual << "'\n";
+        return false;
+    }
+    std::cout << "[OK]   " << label << " = '" << actual << "'\n";
+    return true;
+}
+
+static bool expect_eq(const std::string& label, uint16_t actual, uint16_t expected) {
+    if (actual != expected) {
+        std::cout << "[FAIL] " << label << " expected=" << expected << " actual=" << actual << "\n";
+        return false;
+    }
+    std::cout << "[OK]   " << label << " = " << actual << "\n";
+    return true;
+}
+
+static bool expect_eq(const std::string& label, uint8_t actual, uint8_t expected) {
+    if (actual != expected) {
+        std::cout << "[FAIL] " << label << " expected=" << static_cast<int>(expected)
+                  << " actual=" << static_cast<int>(actual) << "\n";
+        return false;
+    }
+    std::cout << "[OK]   " << label << " = " << static_cast<int>(actual) << "\n";
+    return true;
+}
+
+static std::string get_first_header(const Request::__http_request& hr, const std::string& key) {
+    std::map<std::string, std::vector<std::string> >::const_iterator it = hr.headers.find(key);
+    if (it == hr.headers.end() || it->second.empty())
+        return "";
+    return it->second[0];
+}
+
+static std::string get_query_value(const Request::__http_request& hr, const std::string& key) {
+    std::map<std::string, std::string>::const_iterator it = hr.querry.find(key);
+    if (it == hr.querry.end())
+        return "";
+    return it->second;
+}
+
+static void print_parsed(const std::string& title, const Request::__http_request& hr) {
+    std::cout << "\n--- " << title << " parsed data ---\n";
+    std::cout << "method: " << static_cast<int>(hr.method) << "\n";
+    std::cout << "version: " << hr.version << "\n";
+    std::cout << "uri: " << hr.uri << "\n";
+    std::cout << "body: '" << hr.body << "'\n";
+    if (hr.headers.count("Host") && !hr.headers.find("Host")->second.empty()) {
+        std::cout << "Host: " << hr.headers.find("Host")->second[0] << "\n";
+    }
+    std::cout << "query params:\n";
+    if (hr.querry.empty()) {
+        std::cout << "  (none)\n";
+    } else {
+        for (std::map<std::string, std::string>::const_iterator it = hr.querry.begin(); it != hr.querry.end(); ++it) {
+            std::cout << "  " << it->first << " = " << it->second << "\n";
+        }
+    }
+}
+
 int main() {
-    // Пример простого GET-запроса
-    std::string get_request =
-        "GET /index.html HTTP/1.1\n"
-        "Host: example.com\n"
-        "User-Agent: test-agent\n"
+    bool ok = true;
+
+    const std::string origin_request =
+        "GET /index.html?lang=ru&page=2 HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "User-Agent: test-agent\r\n"
         "\r\n";
 
-    std::pair<uint16_t, Request::__http_request> result = Request::parse_message(get_request);
-    assert(result.first == 200);
-    assert(result.second.method == types::GET);
-    assert(result.second.uri == "/index.html");
-    assert(result.second.version == "1.1");
-    assert(result.second.headers["Host"][0] == "example.com");
-    assert(result.second.body.empty());
+    const std::pair<uint16_t, Request::__http_request> origin_result = Request::parse_message(origin_request, 1024);
+    ok = expect_eq("origin status", origin_result.first, static_cast<uint16_t>(200)) && ok;
+    ok = expect_eq("origin method", origin_result.second.method, static_cast<uint8_t>(types::GET)) && ok;
+    ok = expect_eq("origin uri", origin_result.second.uri, "/index.html?lang=ru&page=2") && ok;
+    ok = expect_eq("origin version", origin_result.second.version, "1.1") && ok;
+    ok = expect_eq("origin host", get_first_header(origin_result.second, "Host"), "example.com") && ok;
+    ok = expect_eq("origin query lang", get_query_value(origin_result.second, "lang"), "ru") && ok;
+    ok = expect_eq("origin query page", get_query_value(origin_result.second, "page"), "2") && ok;
 
-    // Пример POST-запроса с телом
-    std::string post_request =
-        "POST /api HTTP/1.1\n"
-        "Host: example.com\n"
-        "Content-Type: text/plain\n"
+    const std::string absolute_request =
+        "GET http://example.com/products/list?cat=books&sort=asc HTTP/1.0\r\n"
+        "User-Agent: test-agent\r\n"
+        "\r\n";
+
+    const std::pair<uint16_t, Request::__http_request> absolute_result = Request::parse_message(absolute_request, 1024);
+    ok = expect_eq("absolute status", absolute_result.first, static_cast<uint16_t>(200)) && ok;
+    ok = expect_eq("absolute method", absolute_result.second.method, static_cast<uint8_t>(types::GET)) && ok;
+    ok = expect_eq("absolute uri", absolute_result.second.uri,
+                   "http://example.com/products/list?cat=books&sort=asc") && ok;
+    ok = expect_eq("absolute version", absolute_result.second.version, "1.0") && ok;
+    ok = expect_eq("absolute query cat", get_query_value(absolute_result.second, "cat"), "books") && ok;
+    ok = expect_eq("absolute query sort", get_query_value(absolute_result.second, "sort"), "asc") && ok;
+
+    // Tricky negative cases: try to break parser and verify status codes.
+    const std::string no_host_http11 =
+        "GET /index.html HTTP/1.1\r\n"
+        "User-Agent: test-agent\r\n"
+        "\r\n";
+    ok = expect_eq("bad no host (http/1.1)", Request::parse_message(no_host_http11, 1024).first,
+                   static_cast<uint16_t>(400)) && ok;
+
+    const std::string broken_query =
+        "GET /search?onlykey HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "\r\n";
+    ok = expect_eq("bad query without '='", Request::parse_message(broken_query, 1024).first,
+                   static_cast<uint16_t>(400)) && ok;
+
+    const std::string bad_absolute_no_path =
+        "GET http://example.com HTTP/1.0\r\n"
+        "\r\n";
+    ok = expect_eq("bad absolute without path", Request::parse_message(bad_absolute_no_path, 1024).first,
+                   static_cast<uint16_t>(400)) && ok;
+
+    std::string long_uri(4097, 'a');
+    const std::string too_long_uri =
+        std::string("GET /") + long_uri + " HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "\r\n";
+    ok = expect_eq("too long uri", Request::parse_message(too_long_uri, 1024).first,
+                   static_cast<uint16_t>(414)) && ok;
+
+    std::string huge_header_value(8200, 'b');
+    const std::string huge_header =
+        "GET / HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "X-Long: " + huge_header_value + "\r\n"
+        "\r\n";
+    ok = expect_eq("too long header", Request::parse_message(huge_header, 1024).first,
+                   static_cast<uint16_t>(431)) && ok;
+
+    const std::string too_big_body =
+        "POST /upload HTTP/1.1\r\n"
+        "Host: example.com\r\n"
         "\r\n"
-        "hello";
+        "0123456789ABCDEF";
+    ok = expect_eq("too big body", Request::parse_message(too_big_body, 8).first,
+                   static_cast<uint16_t>(413)) && ok;
 
-    std::pair<uint16_t, Request::__http_request> result2 = Request::parse_message(post_request);
-    assert(result2.first == 200);
-    assert(result2.second.method == types::POST);
-    assert(result2.second.uri == "/api");
-    assert(result2.second.version == "1.1");
-    assert(result2.second.headers["Host"][0] == "example.com");
-    assert(result2.second.body == "hello");
+    const std::string bad_version =
+        "GET / HTTP/1.9\r\n"
+        "Host: example.com\r\n"
+        "\r\n";
+    ok = expect_eq("bad http version", Request::parse_message(bad_version, 1024).first,
+                   static_cast<uint16_t>(505)) && ok;
 
-    std::cout << "All tests passed!" << std::endl;
-    return 0;
+    print_parsed("origin-form", origin_result.second);
+    print_parsed("absolute-form", absolute_result.second);
+
+    std::cout << "\nResult: " << (ok ? "ALL CHECKS PASSED" : "HAS FAILURES") << "\n";
+    return ok ? 0 : 1;
 }
