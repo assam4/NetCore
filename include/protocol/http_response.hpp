@@ -10,22 +10,6 @@
 namespace http {
 	namespace core {
 
-		template<
-		std::string to_string(int)
-
-		class StatusRegistry {
-			private:
-				std::map<types::HttpStatus, std::string> _phrases;
-
-				StatusRegistry();
-
-				StatusRegistry(const StatusRegistry&);
-				StatusRegistry& operator=(const StatusRegistry&);
-			public:
-				static StatusRegistry& instance();
-				std::string get_phrase(types::HttpStatus status) const;
-		};
-
 		class Response {
 			public:
 				struct _http_response {
@@ -46,6 +30,8 @@ namespace http {
 				static void set_server_field(_http_response& res);
 				static void set_date_field(_http_response& res);
 				static void set_body_length_field(_http_response& res);
+				static void set_content_type_field(Response::_http_response& res, const std::string& path);
+				static void set_allow_field(Response::_http_response& res, uint8_t methods);
 				static void make_error(_http_response& res, types::HttpStatus status);
 
 		};

@@ -9,6 +9,7 @@
 # include <sys/socket.h>
 # include "server_types.hpp"
 # include "configparser.hpp"
+# include "http_types.hpp"
 
 namespace http {
     namespace core {

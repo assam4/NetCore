@@ -20,9 +20,9 @@ namespace http {
                     std::string body;
                     std::string version;
                     std::string uri;
-                    uint8_t method;
+                    types::HttpMethod method;
                 };
-                static  std::pair<uint16_t, __http_request> parse_message(const std::string&, size_t);
+                static  std::pair<types::HttpStatus, __http_request> parse_message(const std::string&, size_t);
             private:
                 Request();
                 static void    parse_method(__http_request&, const std::string&, size_t&);

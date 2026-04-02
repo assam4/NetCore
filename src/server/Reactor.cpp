@@ -13,11 +13,10 @@
 #include <iostream>
 #include <vector>
 #include <cerrno>
+#include "SignalHandler.hpp"
 
 namespace http {
 	namespace core {
-
-		extern volatile sig_atomic_t g_shutdown;
 
 		Dispatcher::Dispatcher() : _epfd(-1), _running(false) {
 			#if defined(__linux__)
@@ -139,9 +138,9 @@ namespace http {
 
 		void Dispatcher::stop() { _running = false; }
 
-		void Dispatcher::run(volatile sig_atomic_t& shutdown) {
+		void Dispatcher::run() {
 			_running = true;
-			while (_running && !shutdown) {
+			while (_running && SignalHandler::get_shutdown()) {
 				try {
 					dispatch();
 				} catch (const NetException& e) {

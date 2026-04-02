@@ -2,6 +2,8 @@
 # define HTTP_TYPES
 
 # include <stdint.h>
+# include <map>
+# include <string>
 
 namespace http {
 	namespace core {
@@ -78,23 +80,46 @@ namespace http {
 				NETWORK_AUTHENTICATION_REQUIRED = 511
 			};
 
-
 			enum HttpMethod {
-				GET = 1 ,
-				POST = 2,
-				DEL = 4
+				GET = 1 << 0,
+				POST = 1 << 1,
+				DEL = 1 << 2
 			};
 
 			struct HttpError : std::exception {
 				types::HttpStatus code;
 				std::string message;
 
-
 				HttpError(types::HttpStatus c, const std::string& m) : code(c), message(m) {}
 				virtual ~HttpError() throw() {}
 				virtual const char* what() const throw() {
 					return message.empty() ? "Invalid request" : message.c_str();
 				}
+			};
+
+			class StatusRegistry {
+				private:
+					static const std::map<types::HttpStatus, std::string> _phrases;
+
+					StatusRegistry();
+					StatusRegistry(const StatusRegistry&);
+					StatusRegistry& operator=(const StatusRegistry&);
+				public:
+					static std::string get_phrase(types::HttpStatus status);
+			};
+
+			class MimeTypes {
+				private:
+					static std::map<std::string, std::string> _types;
+
+					MimeTypes();
+					MimeTypes(const MimeTypes&);
+					MimeTypes& operator=(const MimeTypes&);
+
+					static bool parse_mime_line(const std::string &line);
+				public:
+					static void setup_mime_types();
+					static std::string get_mime_type(const std::string& type);
 			};
 		}
 	}

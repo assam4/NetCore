@@ -1,6 +1,7 @@
 #include "server_types.hpp"
 #include "virtualhost.hpp"
 #include <iostream>
+#include "http_types.hpp"
 #include <cstdlib>
 #include <exception>
 #include <cctype>
@@ -101,7 +102,7 @@ namespace   http {
                             allowed_methods |= GET;
                         else if (*it == "POST")
                             allowed_methods |= POST;
-                        else if (*it == "DELETE" || *it == "DEL")
+                        else if (*it == "DELETE")
                             allowed_methods |= DEL;
                         else
                             throw std::runtime_error("Parsing error: Unexpected allowed method: '" + *it + "'.\n");
