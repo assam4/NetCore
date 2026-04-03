@@ -13,12 +13,7 @@
 namespace http {
 	namespace core {
 
-		volatile sig_atomic_t HttpServer::_shutdown = 0;
 
-		void HttpServer::signal_handler(int sig) {
-			static_cast<void>(sig);
-			_shutdown = 1;
-		}
 
 		HttpServer::HttpServer() {}
 
@@ -79,10 +74,7 @@ namespace http {
 		}
 
 		void HttpServer::run() {
-			signal(SIGINT, HttpServer::signal_handler);
-			signal(SIGTERM, HttpServer::signal_handler);
-			signal(SIGPIPE, SIG_IGN);
-			_dispatcher.run(_shutdown);
+			_dispatcher.run();
 		}
 
 		void HttpServer::stop() { _dispatcher.stop(); }

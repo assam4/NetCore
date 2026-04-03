@@ -61,9 +61,9 @@ namespace   http {
             struct  __content {
                 std::map<uint16_t, std::string> error_pages;
                 std::set<std::string>   index;
-                bool   allowed_methods[3];
                 std::string root;
                 size_t  client_max_body_size;
+                uint8_t allowed_methods;
                 bool autoindex;
 
                 void    fill_error_pages(const std::map<std::set<std::string>, std::string>&);
