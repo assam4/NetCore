@@ -1,95 +1,142 @@
 #include "CGI.hpp"
 
 namespace http {
-	namespace core  {
-        CGI::CGI() {};
+	namespace core {
 
-        std::string CGI::cgiExec(
-            const std::string& scriptPath,
-            const std::string& interpreterPath,
-            const std::string& method,
-            const std::string& queryString,
-            const std::string& body,
-            const std::string& contentType
-        ) {
-            int in_pipe[2];
-            int out_pipe[2];
+		static std::string int_to_str(unsigned long n) {
+			if (n == 0) return "0";
+			std::string s;
+			while (n > 0) {
+				char c = '0' + (n % 10);
+				s.insert(s.begin(), c);
+				n /= 10;
+			}
+			return s;
+		}
 
-            if (pipe(in_pipe) < 0 || pipe(out_pipe) < 0)
-                return "HTTP/1.1 500 Internal Server Error\r\n\r\nPipe error";
+		CGI::CGI() {}
 
-            pid_t pid = fork();
+		Response::_http_response CGI::exec(
+			const Request::__http_request& req,
+			const std::string& scriptPath,
+			const std::string& interpreterPath
+		) {
+			Response::_http_response res;
+			res._status = types::INTERNAL_SERVER_ERROR;
+			res._version = "HTTP/1.1";
 
-            if (pid < 0)
-                return "HTTP/1.1 500 Internal Server Error\r\n\r\nFork error";
+			int in_pipe[2], out_pipe[2];
+			if (pipe(in_pipe) < 0 || pipe(out_pipe) < 0)
+				return res;
 
-            if (pid == 0)
-            {
-                // ===== CHILD =====
+			pid_t pid = fork();
+			if (pid < 0)
+				return res;
 
-                dup2(in_pipe[0], STDIN_FILENO);
-                dup2(out_pipe[1], STDOUT_FILENO);
+			if (pid == 0) {
+				// CHILD
+				dup2(in_pipe[0], STDIN_FILENO);
+				dup2(out_pipe[1], STDOUT_FILENO);
 
-                close(in_pipe[1]);
-                close(out_pipe[0]);
+				close(in_pipe[1]);
+				close(out_pipe[0]);
 
-                // --- ENV ---
-                std::vector<std::string> env;
+				std::vector<std::string> env;
 
-                std::ostringstream ss;
-                ss << body.size();
+				// Convert HttpMethod enum to string
+				std::string method_str;
+				switch (req.method) {
+					case types::GET:
+						method_str = "GET";
+						break;
+					case types::POST:
+						method_str = "POST";
+						break;
+					case types::DEL:
+						method_str = "DEl";
+						break;
+					default:
+						method_str = "GET";
+				}
 
-                env.push_back("REQUEST_METHOD=" + method);
-                env.push_back("QUERY_STRING=" + queryString);
-                env.push_back("SCRIPT_FILENAME=" + scriptPath);
-                env.push_back("CONTENT_LENGTH=" + ss.str());
-                env.push_back("CONTENT_TYPE=" + contentType);
-                env.push_back("SERVER_PROTOCOL=HTTP/1.1");
-                env.push_back("GATEWAY_INTERFACE=CGI/1.1");
+				env.push_back(std::string("REQUEST_METHOD=") + method_str);
+				env.push_back(std::string("QUERY_STRING=") + req.uri);
+				env.push_back(std::string("SCRIPT_FILENAME=") + scriptPath);
+				env.push_back(std::string("CONTENT_LENGTH=") + int_to_str(req.body.size()));
 
-                std::vector<char*> envp;
-                for (size_t i = 0; i < env.size(); ++i)
-                    envp.push_back(const_cast<char*>(env[i].c_str()));
-                envp.push_back(NULL);
+				// Get Content-Type from headers
+				std::string content_type_value = "text/plain";
+				std::map<std::string, std::vector<std::string> >::const_iterator it = req.headers.find("Content-Type");
+				if (it != req.headers.end() && !it->second.empty()) {
+					content_type_value = it->second[0];
+				}
+				env.push_back(std::string("CONTENT_TYPE=") + content_type_value);
 
-                // --- ARGS ---
-                char* args[3];
-                args[0] = const_cast<char*>(interpreterPath.c_str());
-                args[1] = const_cast<char*>(scriptPath.c_str());
-                args[2] = NULL;
+				env.push_back("SERVER_PROTOCOL=HTTP/1.1");
+				env.push_back("GATEWAY_INTERFACE=CGI/1.1");
+				env.push_back("REDIRECT_STATUS=200");
 
-                execve(args[0], args, &envp[0]);
+				std::vector<char*> envp;
+				for (size_t i = 0; i < env.size(); ++i)
+					envp.push_back(const_cast<char*>(env[i].c_str()));
+				envp.push_back(NULL);
 
-                // если execve не сработал
-                std::exit(1);
-            }
-            else
-            {
-                // ===== PARENT =====
+				char* args[3];
+				args[0] = const_cast<char*>(interpreterPath.c_str());
+				args[1] = const_cast<char*>(scriptPath.c_str());
+				args[2] = NULL;
 
-                close(in_pipe[0]);
-                close(out_pipe[1]);
+				execve(args[0], args, &envp[0]);
+				_exit(1);
+			} else {
+				// PARENT
+				close(in_pipe[0]);
+				close(out_pipe[1]);
 
-                if (method == "POST" && !body.empty())
-                    write(in_pipe[1], body.c_str(), body.size());
+				if (!req.body.empty())
+					write(in_pipe[1], req.body.c_str(), req.body.size());
+				close(in_pipe[1]);
 
-                close(in_pipe[1]);
+				const size_t BUF = 4096;
+				char buffer[BUF];
+				std::string output;
+				ssize_t r;
+				while ((r = read(out_pipe[0], buffer, BUF)) > 0)
+					output.append(buffer, r);
+				close(out_pipe[0]);
 
-                char buffer[4096];
-                std::string cgiOutput;
-                ssize_t bytes;
+				int status;
+				waitpid(pid, &status, 0);
 
-                while ((bytes = read(out_pipe[0], buffer, sizeof(buffer))) > 0)
-                    cgiOutput.append(buffer, bytes);
+				// parse headers
+				size_t pos = output.find("\r\n\r\n");
+				std::string headers = pos != std::string::npos ? output.substr(0, pos) : "";
+				std::string body = pos != std::string::npos ? output.substr(pos + 4) : output;
 
-                close(out_pipe[0]);
+				res._body = body;
+				res._status = types::OK;
 
-                waitpid(pid, NULL, 0);
+				std::istringstream s(headers);
+				std::string line;
+				while (std::getline(s, line)) {
+					if (line.size() > 0 && line[line.size()-1] == '\r')
+						line.erase(line.size()-1);
 
-                return "HTTP/1.1 200 OK\r\n" + cgiOutput;
-            }
+					size_t p = line.find(": ");
+					if (p != std::string::npos) {
+						std::string key = line.substr(0, p);
+						std::string val = line.substr(p + 2);
+						res._headers[key] = val;
+					}
+					else if (line.find("Status:") == 0) {
+						int code = atoi(line.substr(7).c_str());
+						if (code >= 100 && code < 600)
+							res._status = (types::HttpStatus)code;
+					}
+				}
+			}
+			return res;
+		}
 
-            return "HTTP/1.1 500 Internal Server Error\r\n\r\nUnknown error";
-        }
-    }
+	}
 }

@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include <string>
+#include <sstream>
 
 namespace http {
 	namespace core {
@@ -20,15 +21,13 @@ namespace http {
 		template<> struct is_numeric<unsigned short> { enum { value = 1}; };
 		template<> struct is_numeric<unsigned long> { enum { value = 1}; };
 		template<> struct is_numeric<unsigned long long> { enum { value = 1}; };
-		template<> struct is_numeric<size_t> { enum { value = 1}; };
 		template<> struct is_numeric<float> { enum { value = 1}; };
 		template<> struct is_numeric<double> { enum { value = 1}; };
 		template<> struct is_numeric<long double> { enum { value = 1}; };
 
 		template <typename T>
 		std::string to_string(T value) {
-			typedef char check_numeric[is_numeric<T>::value ? 1 : -1];
-			std::stringstream ss;
+				std::stringstream ss;
 			ss << value;
 			return ss.str();
 		}

@@ -123,5 +123,31 @@ namespace http {
 			res._headers["Allow"] = list;
 		}
 
+		std::string Response::serialize(const _http_response& response) {
+			std::stringstream ss;
+			ss << response._version << " " << response._status << " "
+			   << types::StatusRegistry::get_phrase(response._status) << "\r\n";
+
+			for (std::map<std::string, std::string>::const_iterator it = response._headers.begin();
+			     it != response._headers.end(); ++it) {
+				ss << it->first << ": " << it->second << "\r\n";
+			}
+			ss << "\r\n";
+			ss << response._body;
+
+			return ss.str();
+		}
+
+		Response::_http_response Response::make_response(const std::pair<types::HttpStatus, Request::__http_request>& req) {
+			_http_response res;
+			res._version = req.second.version;
+			res._status = req.first;
+			set_connection_field(res, req.second);
+			set_server_field(res);
+			set_date_field(res);
+			set_body_length_field(res);
+			return res;
+		}
+
 	}
 }

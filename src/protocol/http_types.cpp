@@ -7,80 +7,89 @@ namespace http {
 	namespace core {
 		namespace types {
 
+			std::map<types::HttpStatus, std::string> StatusRegistry::_phrases;
+			bool StatusRegistry::_initialized = false;
+			std::map<std::string, std::string> MimeTypes::_types;
+
+			void StatusRegistry::initialize() {
+				if (_initialized)
+					return;
+				_initialized = true;
+				// 1xx - Informational
+				_phrases[types::CONTINUE] = "Continue";
+				_phrases[types::SWITCHING_PROTOCOLS] = "Switching Protocols";
+				_phrases[types::PROCESSING] = "Processing";
+				_phrases[types::EARLY_HINTS] = "Early Hints";
+				// 2xx - Success
+				_phrases[types::OK] = "OK";
+				_phrases[types::CREATED] = "Created";
+				_phrases[types::ACCEPTED] = "Accepted";
+				_phrases[types::NON_AUTHORITATIVE_INFORMATION] = "Non-Authoritative Information";
+				_phrases[types::NO_CONTENT] = "No Content";
+				_phrases[types::RESET_CONTENT] = "Reset Content";
+				_phrases[types::PARTIAL_CONTENT] = "Partial Content";
+				_phrases[types::MULTI_STATUS] = "Multi-Status";
+				_phrases[types::ALREADY_REPORTED] = "Already Reported";
+				_phrases[types::IM_USED] = "IM Used";
+				// 3xx - Redirection
+				_phrases[types::MULTIPLE_CHOICES] = "Multiple Choices";
+				_phrases[types::MOVED_PERMANENTLY] = "Moved Permanently";
+				_phrases[types::FOUND] = "Found";
+				_phrases[types::SEE_OTHER] = "See Other";
+				_phrases[types::NOT_MODIFIED] = "Not Modified";
+				_phrases[types::USE_PROXY] = "Use Proxy";
+				_phrases[types::UNUSED] = "Unused";
+				_phrases[types::TEMPORARY_REDIRECT] = "Temporary Redirect";
+				_phrases[types::PERMANENT_REDIRECT] = "Permanent Redirect";
+				// 4xx - Client Errors
+				_phrases[types::BAD_REQUEST] = "Bad Request";
+				_phrases[types::UNAUTHORIZED] = "Unauthorized";
+				_phrases[types::PAYMENT_REQUIRED] = "Payment Required";
+				_phrases[types::FORBIDDEN] = "Forbidden";
+				_phrases[types::NOT_FOUND] = "Not Found";
+				_phrases[types::METHOD_NOT_ALLOWED] = "Method Not Allowed";
+				_phrases[types::NOT_ACCEPTABLE] = "Not Acceptable";
+				_phrases[types::PROXY_AUTHENTICATION_REQUIRED] = "Proxy Authentication Required";
+				_phrases[types::REQUEST_TIMEOUT] = "Request Timeout";
+				_phrases[types::CONFLICT] = "Conflict";
+				_phrases[types::GONE] = "Gone";
+				_phrases[types::LENGTH_REQUIRED] = "Length Required";
+				_phrases[types::PRECONDITION_FAILED] = "Precondition Failed";
+				_phrases[types::CONTENT_TOO_LARGE] = "Content Too Large";
+				_phrases[types::URI_TOO_LOONG] = "URI Too Long";
+				_phrases[types::UNSUPPORTED_MEDIA_TYPE] = "Unsupported Media Type";
+				_phrases[types::RANGE_NOT_SATISFIABLE] = "Range Not Satisfiable";
+				_phrases[types::EXPECTATION_FAILED] = "Expectation Failed";
+				_phrases[types::I_AM_NOT_TEAPOT] = "I'm a teapot";
+				_phrases[types::MISDIRECTED_REQUEST] = "Misdirected Request";
+				_phrases[types::UNPROCESSABLE_CONTENT] = "Unprocessable Content";
+				_phrases[types::LOCKED] = "Locked";
+				_phrases[types::FAILED_DEPENDENCY] = "Failed Dependency";
+				_phrases[types::TOO_EARLY] = "Too Early";
+				_phrases[types::UPGRADE_REQUIRED] = "Upgrade Required";
+				_phrases[types::PRECONDITION_REQUIRED] = "Precondition Required";
+				_phrases[types::TOO_MANY_REQUESTS] = "Too Many Requests";
+				_phrases[types::REQUEST_HEADER_FIELDS_TOO_LARGE] = "Request Header Fields Too Large";
+				_phrases[types::UNAVAILABLE_FOR_LEGAL_REASONS] = "Unavailable For Legal Reasons";
+				// 5xx - Server Errors
+				_phrases[types::INTERNAL_SERVER_ERROR] = "Internal Server Error";
+				_phrases[types::NOT_IMPLEMENTED] = "Not Implemented";
+				_phrases[types::BAD_GATEWAY] = "Bad Gateway";
+				_phrases[types::SERVICE_UNAVAILABLE] = "Service Unavailable";
+				_phrases[types::GATEWAY_TIMEOUT] = "Gateway Timeout";
+				_phrases[types::HTTP_VERSION_NOT_SUPPORTED] = "HTTP Version Not Supported";
+				_phrases[types::VARIANT_ALSO_NEGOTIATES] = "Variant Also Negotiates";
+				_phrases[types::INSUFFICIENT_STORAGE] = "Insufficient Storage";
+				_phrases[types::LOOP_DETECTED] = "Loop Detected";
+				_phrases[types::NOT_EXTENDED] = "Not Extended";
+				_phrases[types::NETWORK_AUTHENTICATION_REQUIRED] = "Network Authentication Required";
+			}
+
 			StatusRegistry::StatusRegistry() {
-				const std::map<types::HttpStatus, std::string> _phrases = {
-					// 1xx - Informational
-					{types::CONTINUE, "Continue"},
-					{types::SWITCHING_PROTOCOLS, "Switching Protocols"},
-					{types::PROCESSING, "Processing"},
-					{types::EARLY_HINTS, "Early Hints"},
-					// 2xx - Success
-					{types::OK, "OK"},
-					{types::CREATED, "Created"},
-					{types::ACCEPTED, "Accepted"},
-					{types::NON_AUTHORITATIVE_INFORMATION, "Non-Authoritative Information"},
-					{types::NO_CONTENT, "No Content"},
-					{types::RESET_CONTENT, "Reset Content"},
-					{types::PARTIAL_CONTENT, "Partial Content"},
-					{types::MULTI_STATUS, "Multi-Status"},
-					{types::ALREADY_REPORTED, "Already Reported"},
-					{types::IM_USED, "IM Used"},
-					// 3xx - Redirection
-					{types::MULTIPLE_CHOICES, "Multiple Choices"},
-					{types::MOVED_PERMANENTLY, "Moved Permanently"},
-					{types::FOUND, "Found"},
-					{types::SEE_OTHER, "See Other"},
-					{types::NOT_MODIFIED, "Not Modified"},
-					{types::USE_PROXY, "Use Proxy"},
-					{types::UNUSED, "Unused"},
-					{types::TEMPORARY_REDIRECT, "Temporary Redirect"},
-					{types::PERMANENT_REDIRECT, "Permanent Redirect"},
-					// 4xx - Client Errors
-					{types::BAD_REQUEST, "Bad Request"},
-					{types::UNAUTHORIZED, "Unauthorized"},
-					{types::PAYMENT_REQUIRED, "Payment Required"},
-					{types::FORBIDDEN, "Forbidden"},
-					{types::NOT_FOUND, "Not Found"},
-					{types::METHOD_NOT_ALLOWED, "Method Not Allowed"},
-					{types::NOT_ACCEPTABLE, "Not Acceptable"},
-					{types::PROXY_AUTHENTICATION_REQUIRED, "Proxy Authentication Required"},
-					{types::REQUEST_TIMEOUT, "Request Timeout"},
-					{types::CONFLICT, "Conflict"},
-					{types::GONE, "Gone"},
-					{types::LENGTH_REQUIRED, "Length Required"},
-					{types::PRECONDITION_FAILED, "Precondition Failed"},
-					{types::CONTENT_TOO_LARGE, "Content Too Large"},
-					{types::URI_TOO_LOONG, "URI Too Long"},
-					{types::UNSUPPORTED_MEDIA_TYPE, "Unsupported Media Type"},
-					{types::RANGE_NOT_SATISFIABLE, "Range Not Satisfiable"},
-					{types::EXPECTATION_FAILED, "Expectation Failed"},
-					{types::I_AM_NOT_TEAPOT, "I'm a teapot"},
-					{types::MISDIRECTED_REQUEST, "Misdirected Request"},
-					{types::UNPROCESSABLE_CONTENT, "Unprocessable Content"},
-					{types::LOCKED, "Locked"},
-					{types::FAILED_DEPENDENCY, "Failed Dependency"},
-					{types::TOO_EARLY, "Too Early"},
-					{types::UPGRADE_REQUIRED, "Upgrade Required"},
-					{types::PRECONDITION_REQUIRED, "Precondition Required"},
-					{types::TOO_MANY_REQUESTS, "Too Many Requests"},
-					{types::REQUEST_HEADER_FIELDS_TOO_LARGE, "Request Header Fields Too Large"},
-					{types::UNAVAILABLE_FOR_LEGAL_REASONS, "Unavailable For Legal Reasons"},
-					// 5xx - Server Errors
-					{types::INTERNAL_SERVER_ERROR, "Internal Server Error"},
-					{types::NOT_IMPLEMENTED, "Not Implemented"},
-					{types::BAD_GATEWAY, "Bad Gateway"},
-					{types::SERVICE_UNAVAILABLE, "Service Unavailable"},
-					{types::GATEWAY_TIMEOUT, "Gateway Timeout"},
-					{types::HTTP_VERSION_NOT_SUPPORTED, "HTTP Version Not Supported"},
-					{types::VARIANT_ALSO_NEGOTIATES, "Variant Also Negotiates"},
-					{types::INSUFFICIENT_STORAGE, "Insufficient Storage"},
-					{types::LOOP_DETECTED, "Loop Detected"},
-					{types::NOT_EXTENDED, "Not Extended"},
-					{types::NETWORK_AUTHENTICATION_REQUIRED, "Network Authentication Required"}
-				};
 			}
 
 			std::string StatusRegistry::get_phrase(types::HttpStatus status) {
+				initialize();
 				std::map<types::HttpStatus, std::string>::const_iterator it = _phrases.find(status);
 				if (it != _phrases.end())
 					return it->second;
@@ -96,8 +105,8 @@ namespace http {
 				std::string ext;
 				bool added = false;
 				while (iss >> ext) {
-					if (!ext.empty() && ext.back() == ';')
-						ext.pop_back();
+					if (!ext.empty() && ext[ext.length() - 1] == ';')
+						ext.erase(ext.length() - 1);
 					_types[ext] = mime_type;
 					added = true;
 				}

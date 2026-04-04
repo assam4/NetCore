@@ -12,6 +12,8 @@
 # include <string>
 # include <iostream>
 # include <cstdlib>
+# include "http_request.hpp"
+# include "http_response.hpp"
 
 # define BUFFER_SIZE 4096
 
@@ -20,15 +22,12 @@ namespace http {
         class CGI {
             private:
                 CGI ();
-            
+
             public:
-                static std::string cgiExec(
+                static Response::_http_response exec(
+                    const Request::__http_request& req,
                     const std::string& scriptPath,
-                    const std::string& interpreterPath,
-                    const std::string& method,
-                    const std::string& queryString,
-                    const std::string& body,
-                    const std::string& contentType
+                    const std::string& interpreterPath
                 );
         };
     };

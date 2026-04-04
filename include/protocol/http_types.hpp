@@ -99,11 +99,14 @@ namespace http {
 
 			class StatusRegistry {
 				private:
-					static const std::map<types::HttpStatus, std::string> _phrases;
+					static std::map<types::HttpStatus, std::string> _phrases;
+					static bool _initialized;
 
 					StatusRegistry();
 					StatusRegistry(const StatusRegistry&);
 					StatusRegistry& operator=(const StatusRegistry&);
+
+					static void initialize();
 				public:
 					static std::string get_phrase(types::HttpStatus status);
 			};
