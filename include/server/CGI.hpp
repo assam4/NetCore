@@ -12,6 +12,8 @@
 # include <string>
 # include <iostream>
 # include <cstdlib>
+# include <errno.h>
+# include <sys/stat.h>
 # include "http_request.hpp"
 # include "http_response.hpp"
 
@@ -27,7 +29,8 @@ namespace http {
                 static Response::_http_response exec(
                     const Request::__http_request& req,
                     const std::string& scriptPath,
-                    const std::string& interpreterPath
+                    const std::string& interpreterPath,
+                    uint16_t serverPort
                 );
         };
     };
