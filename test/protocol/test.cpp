@@ -40,8 +40,8 @@ static std::string get_first_header(const Request::__http_request& hr, const std
 }
 
 static std::string get_query_value(const Request::__http_request& hr, const std::string& key) {
-    std::map<std::string, std::string>::const_iterator it = hr.querry.find(key);
-    if (it == hr.querry.end())
+    std::map<std::string, std::string>::const_iterator it = hr.query.find(key);
+    if (it == hr.query.end())
         return "";
     return it->second;
 }
@@ -56,10 +56,10 @@ static void print_parsed(const std::string& title, const Request::__http_request
         std::cout << "Host: " << hr.headers.find("Host")->second[0] << "\n";
     }
     std::cout << "query params:\n";
-    if (hr.querry.empty()) {
+    if (hr.query.empty()) {
         std::cout << "  (none)\n";
     } else {
-        for (std::map<std::string, std::string>::const_iterator it = hr.querry.begin(); it != hr.querry.end(); ++it) {
+        for (std::map<std::string, std::string>::const_iterator it = hr.query.begin(); it != hr.query.end(); ++it) {
             std::cout << "  " << it->first << " = " << it->second << "\n";
         }
     }

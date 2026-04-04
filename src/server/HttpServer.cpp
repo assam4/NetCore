@@ -42,12 +42,11 @@ namespace http {
 						std::cerr << "bind() failed for " << lit->host << ":" << lit->port << "\n";
 						continue ;
 					}
-					ss->listen();
 					_server.add_socket(ss);
 					AcceptHandler* ah = new AcceptHandler(raw_fd, _server, _dispatcher);
 					#if defined(__linux__)
 						_dispatcher.register_handler(ah, EPOLLIN);
-					#elif defined(__APPLE__) || defined(FreeBSD__)
+					#elif defined(__APPLE__) || defined(__FreeBSD__)
 						_dispatcher.register_handler(ah, EVFILT_READ);
 					#endif
 				}

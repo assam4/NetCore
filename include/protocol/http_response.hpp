@@ -32,6 +32,10 @@ namespace http {
 				static void set_body_length_field(_http_response& res);
 				static void set_content_type_field(Response::_http_response& res, const std::string& path);
 				static void set_allow_field(Response::_http_response& res, uint8_t methods);
+				static void set_last_modified_field(Response::_http_response& res, const std::string& path);
+				static void set_etag_field(Response::_http_response& res,const std::string& path, bool use_strong);
+				static std::string compute_weak_etag(const std::string& path);
+				static std::string compute_strong_etag(const std::string& path);
 				static void make_error(_http_response& res, types::HttpStatus status);
 
 		};

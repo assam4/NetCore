@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <sys/types.h>
 #include "Socket.hpp"
+#include <stdint.h>
 
 namespace http {
 	namespace core  {
@@ -14,6 +15,7 @@ namespace http {
 				std::string  _read_buf;
 				std::string  _write_buf;
 				std::size_t  _write_offset;
+				uint16_t _local_port;
 				ClientSocket _socket;
 
 				Connection(const Connection&);
@@ -21,7 +23,7 @@ namespace http {
 			public:
 				static const std::size_t MAX_READ_BUF = 8 * 1024 * 1024;
 
-				explicit Connection(int fd);
+				explicit Connection(int fd, uint16_t _local_port);
 				~Connection();
 
 				ssize_t read_once();
@@ -32,6 +34,7 @@ namespace http {
 				bool has_pending_write() const;
 				bool is_alive() const;
 				int get_fd() const;
+				uint16_t get_local_port() const;
 
 				static Connection* make_connection(class ServerSocket& server);
 		};

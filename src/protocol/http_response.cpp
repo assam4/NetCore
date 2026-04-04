@@ -4,6 +4,7 @@
 #include "to_string.hpp"
 #include "http_types.hpp"
 #include <sstream>
+#include <sys/stat.h>
 
 namespace http {
 	namespace core {
@@ -122,6 +123,51 @@ namespace http {
 			}
 			res._headers["Allow"] = list;
 		}
+
+		void Response::set_last_modified_field(Response::_http_response& res, const std::string& path) {
+			struct stat buffer;
+			if (stat(path.c_str(), &buffer) == 0) {
+				std::tm* gmt = std::gmtime(&buffer.st_mtime);
+				char date[100];
+				std::strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S GMT", gmt);
+				res._headers["Last-Modified"] = std::string(date);
+			}
+		}
+
+		std::string Response::compute_strong_etag(const std::string& path) {
+			std::string body = read_file(path);
+			if (body.empty())
+				return "";
+			//FNV-1a
+			uint32_t hash = 2166136261u;
+			for (size_t i = 0; i < body.size(); ++i) {
+				hash ^= (unsigned char)body[i];
+				hash *= 16777619u;
+			}
+			std::ostringstream oss;
+			oss << "\"" << std::hex << hash << "\"";
+			return oss.str();
+		}
+
+		std::string Response::compute_weak_etag(const std::string& path) {
+			struct stat buffer;
+			if (stat(path.c_str(), &buffer) < 0)
+				return "";
+			std::ostringstream oss;
+			oss << "W/\"" << buffer.st_mtime << "-" << buffer.st_size << "\"";
+			return oss.str();
+		}
+
+		void Response::set_etag_field(Response::_http_response& res, const std::string& path, bool use_strong) {
+			std::string etag;
+			if (use_strong)
+				etag = compute_strong_etag(path);
+			else
+				etag = compute_weak_etag(path);
+			if (!etag.empty())
+				res._headers["ETag"] = etag;
+		}
+
 
 	}
 }

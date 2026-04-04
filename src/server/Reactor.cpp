@@ -70,13 +70,15 @@ namespace http {
 			int	status = 0;
 			#if defined(__linux__)
 				status = ::epoll_ctl(_epfd, EPOLL_CTL_DEL, h->get_fd(), NULL);
+				if (status < 0)
+					throw NetException("Server error: Event remove failed.\n");
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
-				struct kevent	kev;
-				EV_SET(&kev, h->get_fd(), EVFILT_READ, EV_DELETE, 0, 0, NULL);
-				status = kevent(_epfd, &kev, 1, NULL, 0, NULL);
+				int n = 0;
+				struct kevent	kev[2];
+				EV_SET(&kev[n++], h->get_fd(), EVFILT_READ, EV_DELETE, 0, 0, NULL);
+				EV_SET(&kev[n++], h->get_fd(), EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
+				kevent(_epfd, &kev, n, NULL, 0, NULL);
 			#endif
-			if (status < 0)
-				throw NetException("Server error: Event remove failed.\n");
 			_handlers.erase(h->get_fd());
 		}
 
@@ -88,9 +90,8 @@ namespace http {
 				ev.data.fd = h->get_fd();
 				status = ::epoll_ctl(_epfd, EPOLL_CTL_MOD, h->get_fd(), &ev);
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
-				(void)events;
 				struct kevent kev;
-				EV_SET(&kev, h->get_fd(), EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL);
+				EV_SET(&kev, h->get_fd(), (int16_t)events, EV_ADD | EV_ENABLE, 0, 0, NULL);
 				status = kevent(_epfd, &kev, 1, NULL, 0, NULL);
 			#endif
 			if (status < 0)
@@ -106,7 +107,7 @@ namespace http {
 				struct kevent	events[MAX_EVENTS];
 				struct timespec	timeout;
 				timeout.tv_sec = EPOLL_TIMEOUT / 1000;
-				timeout.tv_nsec = EPOLL_TIMEOUT % 1000;
+				timeout.tv_nsec = (EPOLL_TIMEOUT % 1000) * 1000000L;
 				int	n = kevent(_epfd, NULL, 0, events, MAX_EVENTS, &timeout);
 			#endif
 			if (n < 0) {
@@ -127,7 +128,7 @@ namespace http {
 						it->second->handle_event(events[i].events);
 				}
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
-				for (int i = 0; i < n; ++n) {
+				for (int i = 0; i < n; ++i) {
 					int	fd = events[i].ident;
 					std::map<int, AEventHandler*>::iterator it = _handlers.find(fd);
 					if (it != _handlers.end())
@@ -140,7 +141,7 @@ namespace http {
 
 		void Dispatcher::run() {
 			_running = true;
-			while (_running && SignalHandler::get_shutdown()) {
+			while (_running && !SignalHandler::get_shutdown()) {
 				try {
 					dispatch();
 				} catch (const NetException& e) {
@@ -210,7 +211,7 @@ namespace http {
 			#if defined(__linux__)
 				_dispatcher.modify_handler(this, EPOLLOUT | EPOLLRDHUP);
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
-				_dispatcher.modify_handler(this, EVFILT_READ);
+				_dispatcher.modify_handler(this, EVFILT_WRITE);
 			#endif
 			return true;
 		}
@@ -257,7 +258,7 @@ namespace http {
 				if (!should_close && events & EPOLLOUT)
 					should_close = (handle_write() == false);
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
-				if (events & (EV_ERROR | EV_EOF)) {
+				if (events. & (EV_ERROR | EV_EOF)) {
 					clean_up();
 					return;
 				}
