@@ -72,12 +72,10 @@ namespace http {
 			#if defined(__linux__)
 				status = ::epoll_ctl(_epfd, EPOLL_CTL_DEL, h->get_fd(), NULL);
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
-				struct kevent	kev;
-				EV_SET(&kev, h->get_fd(), EVFILT_READ, EV_DELETE, 0, 0, NULL);
-				kevent(_epfd, &kev, 1, NULL, 0, NULL);
-				EV_SET(&kev, h->get_fd(), EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
-				kevent(_epfd, &kev, 1, NULL, 0, NULL);
-				status = 0;
+				struct kevent	kev[2];
+				EV_SET(&kev[0], h->get_fd(), EVFILT_READ, EV_DELETE, 0, 0, NULL);
+				EV_SET(&kev[1], h->get_fd(), EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
+				status = kevent(_epfd, kev, 2, NULL, 0, NULL);
 			#endif
 			if (status < 0)
 				throw NetException("Server error: Event remove failed.\n");
