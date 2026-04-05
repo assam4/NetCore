@@ -13,12 +13,7 @@
 namespace http {
 	namespace core {
 
-		volatile sig_atomic_t HttpServer::_shutdown = 0;
 
-		void HttpServer::signal_handler(int sig) {
-			static_cast<void>(sig);
-			_shutdown = 1;
-		}
 
 		HttpServer::HttpServer() {}
 
@@ -47,12 +42,11 @@ namespace http {
 						std::cerr << "bind() failed for " << lit->host << ":" << lit->port << "\n";
 						continue ;
 					}
-					ss->listen();
 					_server.add_socket(ss);
 					AcceptHandler* ah = new AcceptHandler(raw_fd, _server, _dispatcher);
 					#if defined(__linux__)
 						_dispatcher.register_handler(ah, EPOLLIN);
-					#elif defined(__APPLE__) || defined(FreeBSD__)
+					#elif defined(__APPLE__) || defined(__FreeBSD__)
 						_dispatcher.register_handler(ah, EVFILT_READ);
 					#endif
 				}
@@ -79,10 +73,7 @@ namespace http {
 		}
 
 		void HttpServer::run() {
-			signal(SIGINT, HttpServer::signal_handler);
-			signal(SIGTERM, HttpServer::signal_handler);
-			signal(SIGPIPE, SIG_IGN);
-			_dispatcher.run(_shutdown);
+			_dispatcher.run();
 		}
 
 		void HttpServer::stop() { _dispatcher.stop(); }

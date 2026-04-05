@@ -13,11 +13,10 @@
 #include <iostream>
 #include <vector>
 #include <cerrno>
+#include "SignalHandler.hpp"
 
 namespace http {
 	namespace core {
-
-		extern volatile sig_atomic_t g_shutdown;
 
 		Dispatcher::Dispatcher() : _epfd(-1), _running(false) {
 			#if defined(__linux__)
@@ -71,14 +70,14 @@ namespace http {
 			int	status = 0;
 			#if defined(__linux__)
 				status = ::epoll_ctl(_epfd, EPOLL_CTL_DEL, h->get_fd(), NULL);
+				if (status < 0)
+					throw NetException("Server error: Event remove failed.\n");
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
 				struct kevent	kev[2];
 				EV_SET(&kev[0], h->get_fd(), EVFILT_READ, EV_DELETE, 0, 0, NULL);
 				EV_SET(&kev[1], h->get_fd(), EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
 				status = kevent(_epfd, kev, 2, NULL, 0, NULL);
 			#endif
-			if (status < 0)
-				throw NetException("Server error: Event remove failed.\n");
 			_handlers.erase(h->get_fd());
 		}
 
@@ -111,7 +110,7 @@ namespace http {
 				struct kevent	events[MAX_EVENTS];
 				struct timespec	timeout;
 				timeout.tv_sec = EPOLL_TIMEOUT / 1000;
-				timeout.tv_nsec = EPOLL_TIMEOUT % 1000;
+				timeout.tv_nsec = (EPOLL_TIMEOUT % 1000) * 1000000L;
 				int	n = kevent(_epfd, NULL, 0, events, MAX_EVENTS, &timeout);
 			#endif
 			if (n < 0) {
@@ -143,9 +142,9 @@ namespace http {
 
 		void Dispatcher::stop() { _running = false; }
 
-		void Dispatcher::run(volatile sig_atomic_t& shutdown) {
+		void Dispatcher::run() {
 			_running = true;
-			while (_running && !shutdown) {
+			while (_running && !SignalHandler::get_shutdown()) {
 				try {
 					dispatch();
 				} catch (const NetException& e) {

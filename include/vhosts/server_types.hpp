@@ -51,12 +51,6 @@ namespace   http {
                 void  fill_server_names(std::set<std::string>&, const std::vector<VirtualHost>&);
             };
 
-
-            enum    Methods {
-                GET = 1 << 0,
-                POST = 1 << 1,
-                DEL = 1 << 2
-            };
             /**
             * @struct __content
             * @brief Contains all HTTP response configuration and content delivery settings.

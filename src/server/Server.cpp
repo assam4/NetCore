@@ -1,10 +1,12 @@
 #include "Server.hpp"
 #include <iostream>
+#include <unistd.h>
+#include <arpa/inet.h>
 
 namespace http {
 	namespace core {
 
-		Connection::Connection(int fd) : _write_offset(0), _socket(fd) {}
+		Connection::Connection(int fd, uint16_t port) : _write_offset(0), _socket(fd), _local_port(port) {}
 
 		Connection::~Connection() {}
 
@@ -63,11 +65,31 @@ namespace http {
 			return _socket.get_fd();
 		}
 
+		uint16_t Connection::get_local_port() const {
+			return _local_port;
+		}
+
 		Connection* Connection::make_connection(ServerSocket& server) {
 			int fd = server.accept_fd();
 			if (fd < 0)
 				return NULL;
-			return new Connection(fd);
+			sockaddr_storage local;
+			socklen_t len = sizeof(local);
+			uint16_t port = 0;
+			if (::getsockname(fd, reinterpret_cast<sockaddr*>(&local), &len) == 0) {
+				if (local.ss_family == AF_INET)
+					port = ntohs(reinterpret_cast<sockaddr_in*>(&local)->sin_port);
+				else if (local.ss_family == AF_INET6)
+					port = ntohs(reinterpret_cast<sockaddr_in6*>(&local)->sin6_port);
+				else {
+					::close(fd);
+					return NULL;
+				}
+			} else {
+				::close(fd);
+				return NULL;
+			}
+			return new Connection(fd, port);
 		}
 
 		Server::Server() {}

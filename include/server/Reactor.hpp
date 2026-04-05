@@ -2,13 +2,12 @@
 # define REACTOR_HPP
 
 # include <stdint.h>
-# include <csignal>
 # include <map>
 # include "Server.hpp"
 
 namespace http {
 	namespace core {
-		
+
 		class AEventHandler {
 			public:
 				virtual ~AEventHandler() {}
@@ -40,7 +39,7 @@ namespace http {
 				void modify_handler(AEventHandler* h, uint32_t events);
 
 				void dispatch();
-				void run(volatile sig_atomic_t& shutdown);
+				void run();
 				void stop();
 		};
 

@@ -14,12 +14,9 @@ namespace http {
 				std::vector<VirtualHost> _virtual_hosts;
 				Dispatcher _dispatcher;
 				Server _server;
-				static volatile sig_atomic_t _shutdown;
 
 				HttpServer(const HttpServer&);
 				HttpServer& operator=(const HttpServer&);
-
-				static void signal_handler(int sig);
 			public:
 				HttpServer();
 				~HttpServer();
