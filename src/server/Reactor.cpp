@@ -74,7 +74,10 @@ namespace http {
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
 				struct kevent	kev;
 				EV_SET(&kev, h->get_fd(), EVFILT_READ, EV_DELETE, 0, 0, NULL);
-				status = kevent(_epfd, &kev, 1, NULL, 0, NULL);
+				kevent(_epfd, &kev, 1, NULL, 0, NULL);
+				EV_SET(&kev, h->get_fd(), EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
+				kevent(_epfd, &kev, 1, NULL, 0, NULL);
+				status = 0;
 			#endif
 			if (status < 0)
 				throw NetException("Server error: Event remove failed.\n");
@@ -89,9 +92,12 @@ namespace http {
 				ev.data.fd = h->get_fd();
 				status = ::epoll_ctl(_epfd, EPOLL_CTL_MOD, h->get_fd(), &ev);
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
-				(void)events;
 				struct kevent kev;
-				EV_SET(&kev, h->get_fd(), EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL);
+				if ((int)events == EVFILT_WRITE) {
+					EV_SET(&kev, h->get_fd(), EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, NULL);
+				} else {
+					EV_SET(&kev, h->get_fd(), EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
+				}
 				status = kevent(_epfd, &kev, 1, NULL, 0, NULL);
 			#endif
 			if (status < 0)
@@ -128,7 +134,7 @@ namespace http {
 						it->second->handle_event(events[i].events);
 				}
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
-				for (int i = 0; i < n; ++n) {
+				for (int i = 0; i < n; ++i) {
 					int	fd = events[i].ident;
 					std::map<int, AEventHandler*>::iterator it = _handlers.find(fd);
 					if (it != _handlers.end())
@@ -169,11 +175,11 @@ namespace http {
 				if (!(events & EPOLLIN))
 					return ;
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
-				if (events & (EV_ERROR | EV_EOF)) {
+				if (static_cast<int>(events) & (EV_ERROR | EV_EOF)) {
 					std::cerr << "[AcceptHandler] error on listener " << _fd << "\n";
 					return;
 				}
-				if (!(events & EVFILT_READ))
+				if (static_cast<int>(events) != EVFILT_READ)
 					return;
 			#endif
 			Connection	*conn = _server.accept_client(_fd);
@@ -211,7 +217,7 @@ namespace http {
 			#if defined(__linux__)
 				_dispatcher.modify_handler(this, EPOLLOUT | EPOLLRDHUP);
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
-				_dispatcher.modify_handler(this, EVFILT_READ);
+				_dispatcher.modify_handler(this, EVFILT_WRITE);
 			#endif
 			return true;
 		}
@@ -223,12 +229,13 @@ namespace http {
 			if (done) {
 				if (_half_closed)
 					return false;
-				else
+				else {
 					#if defined(__linux__)
 						_dispatcher.modify_handler(this, EPOLLIN | EPOLLRDHUP);
 					#elif defined(__APPLE__) || defined(__FreeBSD__)
 						_dispatcher.modify_handler(this, EVFILT_READ);
 					#endif
+				}
 			}
 			return true;
 		}
@@ -262,12 +269,10 @@ namespace http {
 					clean_up();
 					return;
 				}
-				if (events & EV_EOF)
-					_half_closed = true;
 				bool should_close = false;
-				if (events & EVFILT_READ)
+				if ((int)events == EVFILT_READ)
 					should_close = (handle_read() == false);
-				if (!should_close && events & EVFILT_WRITE)
+				if (!should_close && (int)events == EVFILT_WRITE)
 					should_close = (handle_write() == false);
 			#endif
 			if (!should_close && _half_closed && !_conn->has_pending_write())
