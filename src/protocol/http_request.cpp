@@ -2,191 +2,166 @@
 #include <iostream>
 #include <sstream>
 #include <cctype>
+#include <algorithm>
 
 namespace http {
 	namespace core {
 
-		const static size_t RequestLineLength = 8192; // 8KB
+		const static size_t StartLineLength = 8192; // 8KB
 		const static size_t URILength = 4096; // 4KB
+		const static size_t	QueryLength = 2048; // 2KB
 		const static size_t SingleHeaderLength = 8192; // 8KB
 		const static size_t HeadersLength = 32768; // 32KB
 		const static size_t DefaultMaxBodyLength = 1024;// 1KB
 
-		void    Request::parse_method(Request::__http_request& hr, const std::string& line, size_t& position) {
-			if (line.compare(0, 3, "GET") == 0 && line.size() > 3 && line[3] == ' ') {
-				hr.method = types::GET;
-				position = 3;
-			}
-			else if (line.compare(0, 4, "POST") == 0 && line.size() > 4 && line[4] == ' ') {
-				hr.method = types::POST;
-				position = 4;
-			}
-			else if (line.compare(0, 6, "DELETE") == 0 && line.size() > 6 && line[6] == ' ') {
-				hr.method = types::DEL;
-				position = 6;
-			}
-			else
-				throw types::NOT_IMPLEMENTED;
-		}
-
-		bool Request::is_query_char(unsigned char c) {
-			if (std::isalnum(c))
-				return true;
-			switch (c) {
-				case '-': case '.': case '_': case '~':
-				case '!': case '$': case '&': case '\'':
-				case '(': case ')': case '*': case '+':
-				case ',': case ';': case '=':
-				case ':': case '@':
-				case '/': case '?':
-					return true;
-				default:
-					return false;
-			}
-		}
-
-		void Request::validate_query_string(const std::string& query) {
-			for (size_t i = 0; i < query.length(); ++i) {
-				unsigned char c = query[i];
-				if (c == '%') {
-					if (i + 2 >= query.length() || !isxdigit(query[i+1]) || !std::isxdigit(query[i + 2]))
+		void	__start_line::query_validate() const {
+			const std::string	allowed = "-._~!$&'()*+,;=:/?";
+			if (query.empty())
+				return;
+			size_t size = query.length();
+			if (size > QueryLength)
+				throw types::BAD_REQUEST;
+			for (size_t	i = 0; i < size; ++i) {
+				if (query[i] == '%') {
+					if (i + 2 < size && std::isxdigit(query[++i]) && std::isxdigit(query[++i]))
+						continue;
+					else
 						throw types::BAD_REQUEST;
-					i += 2;
-					continue;
 				}
-				if (!is_query_char(c))
+				if (!std::isalnum(query[i]) && (allowed.find(query[i]) == std::string::npos))
 					throw types::BAD_REQUEST;
 			}
 		}
 
-		void Request::validate_uri(Request::__http_request& hr) {
-			size_t position = 0;
-			if (hr.uri.compare(0, 7, "http://") == 0)
-				position = 7;
-			if (position) {
-				size_t end_pos = hr.uri.find_first_of('/', position);
-				if (end_pos == std::string::npos)
-					throw types::BAD_REQUEST;
-				position = end_pos;
-			}
-			if (hr.uri[position] != '/')
-				throw types::BAD_REQUEST;
-			size_t  query_start = hr.uri.find_first_of('?', position);
-			if (query_start != std::string::npos) {
-				hr.query = hr.uri.substr(query_start + 1);
-				hr.uri.erase(query_start);
-				validate_query_string(hr.query);
-			}
-		}
-
-		void    Request::parse_uri(Request::__http_request& hr, const std::string& line, size_t& position) {
-			if (position >= line.size() || !std::isspace(line[position]))
-				throw types::BAD_REQUEST;
-			++position;
-			size_t  end_pos = line.find_first_of(' ', position);
-			if (end_pos == std::string::npos)
-				throw types::BAD_REQUEST;
-			hr.uri = line.substr(position, end_pos - position);
-			position = end_pos + 1;
-			if (hr.uri.empty())
-				throw types::BAD_REQUEST;
-			if (hr.uri.length() > URILength)
-				throw types::URI_TOO_LOONG;
-			validate_uri(hr);
-		}
-
-		void    Request::parse_protocol(Request::__http_request& hr, const std::string& line, size_t& position) {
-			size_t  end_pos = line.find_first_of('/', position);
-			if (end_pos == std::string::npos)
-				throw types::BAD_REQUEST;
-			if (line.compare(position, end_pos - position, "HTTP") != 0)
-				throw types::HTTP_VERSION_NOT_SUPPORTED;
-			++end_pos;
-			hr.version = line.substr(end_pos, line.length() - end_pos);
-			if (!hr.version.empty() && hr.version[hr.version.size() - 1] == '\r')
-				hr.version.erase(hr.version.size() - 1);
-			size_t last = hr.version.find_last_not_of(" \t");
-			if (last != std::string::npos)
-				hr.version.erase(last + 1);
+		void	__start_line::parse_protocol(const std::string& line, size_t start, size_t end) {
+			size_t	protocol_sep = line.find_first_of('/', start);
+			if (protocol_sep == std::string::npos)
+				throw types:: BAD_REQUEST;
+			if (line.compare(start, protocol_sep - start, "HTTP") == 0
+					&& (line.compare(protocol_sep + 1, end - protocol_sep, "1.0") == 0 
+						|| line.compare(protocol_sep + 1, end - protocol_sep, "1.1") == 0))
+				version = line.substr(start, end - start);
 			else
-				hr.version.clear();
-			if (hr.version != "1.0" && hr.version != "1.1")
 				throw types::HTTP_VERSION_NOT_SUPPORTED;
 		}
 
-		void    Request::parse_start_line(std::stringstream& os, Request::__http_request& hr) {
-			size_t  position = 0;
-			std::string line;
-			std::getline(os, line);
-			if (line.empty())
+		void	Request::parse_start_line(const std::string& line) {
+			start_line.critical_cases_check(line);
+			size_t	start_index = 0, end_index = line.find_first_of(' ');
+			if (!end_index || end_index == std::string::npos)
 				throw types::BAD_REQUEST;
-			if (line.length() > RequestLineLength)
-				throw types::URI_TOO_LOONG;
-			parse_method(hr, line, position);
-			parse_uri(hr, line, position);
-			parse_protocol(hr, line, position);
+			start_line.parse_method(line, start_index, end_index);
+			start_index = end_index + 1;
+			end_index = line.find_first_of(' ', start_index);
+			if (end_index == std::string::npos)
+				throw types::BAD_REQUEST;
+			start_index = end_index + 1;
+			end_index = line.find_last_not_of("\r\n\0");
+			if (end_index == std::string::npos)
+				throw types::BAD_REQUEST;
+			start_line.parse_protocol(line, start_index, end_index);	
 		}
 
-		void    Request::parse_headers(std::stringstream& os, Request::__http_request& hr) {
-			size_t  length = 0;
-			bool    host_status = (hr.version == "1.1") ? false : true;
-			std::string line;
-			while (std::getline(os, line)) {
-				if (!line.empty() && line[line.size()-1] == '\r')
-					line.erase(line.size()-1);
-				if (line.empty())
-					break;
-				length += line.length();
-				if (length > HeadersLength || line.length() > SingleHeaderLength)
-					throw types::REQUEST_HEADER_FIELDS_TOO_LARGE;
-				if (std::isspace(line[0]))
-					throw types::BAD_REQUEST;
-				size_t sep = line.find_first_of(":");
-				if (sep == std::string::npos)
-					throw types::BAD_REQUEST;
-				std::string key = line.substr(0, sep);
-				for (size_t i = 0; i < key.size(); ++i)
-					key[i] = std::tolower(key[i]);
-				key.erase(key.find_last_not_of(" \t\r\n") + 1);
-				++sep;
-				std::string value = (sep < line.size()) ? line.substr(sep) : std::string("");
-				value.erase(0, value.find_first_not_of(" \t\r\n"));
-				value.erase(value.find_last_not_of(" \t\r\n") + 1);
-				if (!host_status && (key == "host"))
-					host_status = true;
-				(hr.headers[key]).push_back(value);
+		std::set<std::string>   __header_map::make_unique_headers_list() {
+			std::set<std::string> s;
+    		s.insert("host");
+    		s.insert("content-length");
+    		s.insert("content-type");
+    		s.insert("authorization");
+    		s.insert("user-agent");
+    		s.insert("referer");
+    		s.insert("content-encoding");
+    		s.insert("content-language");
+    		s.insert("content-location");
+    		s.insert("content-range");
+    		s.insert("content-md5");
+    		s.insert("date");
+    		s.insert("expect");
+    		s.insert("from");
+    		s.insert("location");
+    		s.insert("max-forwards");
+    		s.insert("server");
+    		s.insert("te");
+    		s.insert("upgrade");
+    		s.insert("via");
+    		return s;
+		}
+
+		const std::set<std::string> __header_map::uniques = make_unique_headers_list();
+
+		static std::string trim(const std::string& str) {
+			size_t start = str.find_first_not_of(" \t");
+			if (start == std::string::npos)
+				return "";
+			size_t end = str.find_last_not_of(" \t");
+			return str.substr(start, end - start + 1);
+		}
+
+		std::vector<std::string>	__header_map::parse_values(const std::string& values) const {
+			std::vector<std::string>	result;
+			size_t start_pos = 0;
+			while (true) {
+				size_t end_pos = values.find_first_of(',', start_pos);
+				if (end_pos == std::string::npos) {
+					result.push_back(trim(values.substr(start_pos)));
+					return result;
+				}
+				else {
+					result.push_back(trim(values.substr(start_pos, end_pos - start_pos)));
+					start_pos = end_pos + 1;
+				}
 			}
-			if (!host_status)
+			return result;
+		}
+
+		void	__header_map::parse_header(const std::string& line, size_t& len) {
+			size_t single_len = line.length();
+			len += single_len;
+			if (single_len > SingleHeaderLength || len > HeadersLength)
+				throw types::REQUEST_HEADER_FIELDS_TOO_LARGE;
+			size_t	header_divider = line.find_first_of(':');
+			if (header_divider == std::string::npos)
 				throw types::BAD_REQUEST;
+			std::string	key = line.substr(0, header_divider);
+			std::transform(key.begin(), key.end(), key.begin(), static_cast<int(*)(int)>(std::tolower));
+			std::vector<std::string> values = parse_values(line.substr(header_divider + 1));
+			if (uniques.find(key) != uniques.end() && (header_map.find(key) != header_map.end() || values.size() > 1))
+					throw types::BAD_REQUEST;
+			std::vector<std::string>& headerValues = header_map[key];
+			headerValues.insert(headerValues.end(), values.begin(), values.end());
+			std::sort(headerValues.begin(), headerValues.end());
+			headerValues.erase(std::unique(headerValues.begin(), headerValues.end()), headerValues.end());
 		}
 
-		void    Request::parse_body(std::stringstream& os, Request::__http_request& hr, size_t max_body_size) {
-			std::string body((std::istreambuf_iterator<char>(os)), std::istreambuf_iterator<char>());
-			size_t pos = 0;
-			while (pos < body.size() && (body[pos] == '\r' || body[pos] == '\n'))
-				++pos;
-            if (pos > max_body_size)
-                throw types::CONTENT_TOO_LARGE;
-			hr.body = body.substr(pos);
+		void	Request::check_mandatory_headers() const {
+			if (start_line.version == "HTTP/1.1"
+					&& headers.header_map.find("host") == headers.header_map.end())
+				throw types::BAD_REQUEST;
+			if ((start_line.method == types::POST)
+					&& headers.header_map.find("content-length") == headers.header_map.end()
+					&& headers.header_map.find("transfer-encoding") == headers.header_map.end())
+				throw types::LENGTH_REQUIRED;
 		}
 
-		std::pair<types::HttpStatus, Request::__http_request> Request::parse_message(const std::string& message, size_t max_body_size) {
-			Request::__http_request  hr;
+		std::pair<types::HttpStatus, Request> Request::parse_message(const std::string& message) {
+			Request	parsed_request;
 			types::HttpStatus status_code = types::OK;
 			try {
-				std::stringstream   os;
-				os << message;
-				parse_start_line(os, hr);
-				parse_headers(os, hr);
-				parse_body(os, hr, max_body_size);
+				std::stringstream   message_stream(message);
+				std::string	single_line;
+				std::getline(message_stream, single_line);
+				parsed_request.parse_start_line(single_line);
+				size_t	headers_length = 0;
+				while (std::getline(message_stream, single_line)) {
+					if (single_line.empty() || single_line[0] == '\r')
+						break ;
+					parsed_request.headers.parse_header(single_line, headers_length);
+				}
+				parsed_request.check_mandatory_headers();
 			}
-			catch(types::HttpStatus n) {
-				status_code = n;
-			}
-			catch(...) {
-				status_code = types::INTERNAL_SERVER_ERROR;
-			}
-			return std::make_pair(status_code, hr);
+			catch(types::HttpStatus n) { status_code = n; }
+			catch(...) { status_code = types::INTERNAL_SERVER_ERROR; }
+			return std::make_pair(status_code, parsed_request);
 		}
 	}
 }

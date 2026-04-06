@@ -50,7 +50,7 @@ namespace http {
 					{types::LENGTH_REQUIRED, "Length Required"},
 					{types::PRECONDITION_FAILED, "Precondition Failed"},
 					{types::CONTENT_TOO_LARGE, "Content Too Large"},
-					{types::URI_TOO_LOONG, "URI Too Long"},
+					{types::URI_TOO_LONG, "URI Too Long"},
 					{types::UNSUPPORTED_MEDIA_TYPE, "Unsupported Media Type"},
 					{types::RANGE_NOT_SATISFIABLE, "Range Not Satisfiable"},
 					{types::EXPECTATION_FAILED, "Expectation Failed"},
