@@ -3,6 +3,8 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
+#include <signal.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -43,6 +45,15 @@ static bool expect_eq_size(const std::string& label, size_t actual, size_t expec
         return false;
     }
     std::cout << "[OK]   " << label << " = " << actual << "\n";
+    return true;
+}
+
+static bool expect_true(const std::string& label, bool condition) {
+    if (!condition) {
+        std::cout << "[FAIL] " << label << " expected=true actual=false\n";
+        return false;
+    }
+    std::cout << "[OK]   " << label << " = true\n";
     return true;
 }
 
@@ -102,6 +113,118 @@ static std::pair<types::HttpStatus, Request> parse_with_connection(const std::st
             throw std::runtime_error("send body failed");
     }
     return out;
+}
+
+static std::pair<types::HttpStatus, Request> parse_with_parts(
+    const std::string& head,
+    const std::vector<std::string>& parts,
+    useconds_t delay_us)
+{
+    int fds[2];
+    if (::socketpair(AF_UNIX, SOCK_STREAM, 0, fds) != 0)
+        throw std::runtime_error("socketpair failed");
+
+    if (!send_all(fds[1], head)) {
+        ::close(fds[0]);
+        ::close(fds[1]);
+        throw std::runtime_error("send head failed");
+    }
+
+    Connection conn(fds[0], 8080);
+    if (conn.read_once() <= 0) {
+        ::close(fds[1]);
+        throw std::runtime_error("read_once failed");
+    }
+
+    pid_t sender_pid = -1;
+    if (!parts.empty()) {
+        sender_pid = ::fork();
+        if (sender_pid < 0) {
+            ::close(fds[1]);
+            throw std::runtime_error("fork failed");
+        }
+        if (sender_pid == 0) {
+            bool ok = true;
+            for (size_t i = 0; i < parts.size() && ok; ++i) {
+                ok = send_all(fds[1], parts[i]);
+                if (ok && delay_us && (i + 1 < parts.size()))
+                    usleep(delay_us);
+            }
+            ::shutdown(fds[1], SHUT_WR);
+            ::close(fds[1]);
+            ::_exit(ok ? 0 : 1);
+        }
+    } else {
+        ::shutdown(fds[1], SHUT_WR);
+    }
+
+    std::pair<types::HttpStatus, Request> out = Request::parse_message(conn);
+    ::close(fds[1]);
+
+    if (sender_pid > 0) {
+        int status = 0;
+        ::waitpid(sender_pid, &status, 0);
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+            throw std::runtime_error("send parts failed");
+    }
+    return out;
+}
+
+static bool parse_with_parts_finishes(
+    const std::string& head,
+    const std::vector<std::string>& parts,
+    useconds_t delay_us,
+    unsigned timeout_ms,
+    uint16_t& status_out)
+{
+    int pipefd[2];
+    if (::pipe(pipefd) != 0)
+        throw std::runtime_error("pipe failed");
+
+    pid_t pid = ::fork();
+    if (pid < 0) {
+        ::close(pipefd[0]);
+        ::close(pipefd[1]);
+        throw std::runtime_error("fork failed");
+    }
+
+    if (pid == 0) {
+        ::close(pipefd[0]);
+        uint16_t code = static_cast<uint16_t>(500);
+        try {
+            std::pair<types::HttpStatus, Request> out = parse_with_parts(head, parts, delay_us);
+            code = static_cast<uint16_t>(out.first);
+        } catch (...) {
+            code = static_cast<uint16_t>(500);
+        }
+        (void)::write(pipefd[1], &code, sizeof(code));
+        ::close(pipefd[1]);
+        ::_exit(0);
+    }
+
+    ::close(pipefd[1]);
+    unsigned elapsed = 0;
+    int status = 0;
+    while (elapsed < timeout_ms) {
+        pid_t w = ::waitpid(pid, &status, WNOHANG);
+        if (w == pid) {
+            uint16_t code = 500;
+            ssize_t n = ::read(pipefd[0], &code, sizeof(code));
+            ::close(pipefd[0]);
+            if (n == static_cast<ssize_t>(sizeof(code)))
+                status_out = code;
+            else
+                status_out = 500;
+            return true;
+        }
+        usleep(1000);
+        ++elapsed;
+    }
+
+    ::kill(pid, SIGKILL);
+    ::waitpid(pid, &status, 0);
+    ::close(pipefd[0]);
+    return false;
 }
 
 static std::string get_query_value(const Request& req, const std::string& key) {
@@ -325,6 +448,52 @@ int main() {
     std::pair<types::HttpStatus, Request> long_longer_result = parse_with_connection(long_longer_than_cl_head, long_body_longer);
     ok = expect_eq("long body longer than content-length status", long_longer_result.first, static_cast<uint16_t>(200)) && ok;
     ok = expect_eq_size("long body longer than content-length read size", long_longer_result.second.body.content.size(), 6000) && ok;
+
+    // --- Probes for reported analyzer findings ---
+
+    const std::string bug1_protocol_suffix =
+        "GET / HTTP/1.1X\r\n"
+        "Host: example.com\r\n"
+        "\r\n";
+    ok = expect_eq("probe bug1 protocol suffix", parse_with_connection(bug1_protocol_suffix).first,
+                   static_cast<uint16_t>(505)) && ok;
+
+    const std::string bug3_incomplete_headers =
+        "GET /partial HTTP/1.1\r\n"
+        "Host: example.com";
+    ok = expect_eq("probe bug3 incomplete headers accepted", parse_with_connection(bug3_incomplete_headers).first,
+                   static_cast<uint16_t>(400)) && ok;
+
+    const std::string bug4_priority_te_vs_cl =
+        "POST /priority HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "Transfer-Encoding: notchunked\r\n"
+        "Content-Length: 4\r\n"
+        "\r\n";
+    ok = expect_eq("probe bug4 transfer-encoding priority", parse_with_connection(bug4_priority_te_vs_cl, "test").first,
+                   static_cast<uint16_t>(501)) && ok;
+
+    const std::string bug5_query_basic =
+        "GET /search?q=hello HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "\r\n";
+    std::pair<types::HttpStatus, Request> bug5_query_result = parse_with_connection(bug5_query_basic);
+    ok = expect_eq("probe bug5 status", bug5_query_result.first, static_cast<uint16_t>(200)) && ok;
+    ok = expect_eq("probe bug5 query parsed", get_query_value(bug5_query_result.second, "q"), "hello") && ok;
+
+    const std::string bug2_chunk_head =
+        "POST /split HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "Transfer-Encoding: chunked\r\n"
+        "\r\n";
+    std::vector<std::string> bug2_parts;
+    bug2_parts.push_back("A\r");
+    bug2_parts.push_back("\n1234567890\r\n0\r\n\r\n");
+    uint16_t bug2_status = 0;
+    bool bug2_finished = parse_with_parts_finishes(bug2_chunk_head, bug2_parts, 0, 1000, bug2_status);
+    ok = expect_true("probe bug2 split-chunk parser finishes", bug2_finished) && ok;
+    if (bug2_finished)
+        ok = expect_eq("probe bug2 split-chunk status", bug2_status, static_cast<uint16_t>(200)) && ok;
 
     std::cout << "\nResult: " << (ok ? "ALL CHECKS PASSED" : "HAS FAILURES") << "\n";
     return ok ? 0 : 1;

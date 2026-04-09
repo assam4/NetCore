@@ -11,6 +11,20 @@ namespace http {
 		Request::Request() {}
 		static const size_t MaxAttempts = 10000;
 
+		static void read_with_attempts(Connection& c, types::HttpStatus on_timeout) {
+			size_t attempts = 0;
+			while (attempts < MaxAttempts) {
+				ssize_t n = c.read_once();
+				if (n < 0)
+					throw types::BAD_REQUEST;
+				if (n == 0)
+					++attempts;
+				else
+					return;
+			}
+			throw on_timeout;
+		}
+
 				// Implementation of struct __start_line methods
 	
 		void	__start_line::query_validate() const {
@@ -132,17 +146,7 @@ namespace http {
 		}
 		
 		void	__body::try_to_read(Connection& c) const {
-			size_t attempts = 0;
-			while (attempts < MaxAttempts) {
-				ssize_t	n = c.read_once();
-				if (n < 0)
-					throw types::BAD_REQUEST;
-				if (n == 0)
-					++attempts;
-				else
-					return;			// good keys
-			}
-			throw types::BAD_REQUEST;
+			read_with_attempts(c, types::BAD_REQUEST);
 		}
 
 		void    __body::fixed_read(Connection& c, size_t content_len) {
@@ -185,26 +189,39 @@ namespace http {
 		size_t	__body::get_chunk_size(Connection& c) {
 			std::string line;
 			while (true) {
-				size_t line_end = line.find("\r\n");
-				if (line_end != std::string::npos) {
-					std::string size_str = line.substr(0, line_end);
-					if (size_str.empty())
-						throw types::BAD_REQUEST;
-					size_t to_consume = line_end + 2;
-					c.consume_read(to_consume);
-					try {
-						return http::utils::atoul_base<http::utils::HEXDECIMAL>(size_str);
-					}
-					catch (std::logic_error&) {
-						throw types::BAD_REQUEST;
-					}
-				}
 				const std::string& buffered = c.read_buffer();
 				if (buffered.empty())
 					try_to_read(c);
 				else {
-					size_t to_add = buffered.length();
-					line.append(buffered, 0, to_add);
+					if (!line.empty() && line[line.length() - 1] == '\r' && buffered[0] == '\n') {
+						line.erase(line.length() - 1);
+						c.consume_read(1);
+						if (line.empty())
+							throw types::BAD_REQUEST;
+						try {
+							return http::utils::atoul_base<http::utils::HEXDECIMAL>(line);
+						}
+						catch (std::logic_error&) {
+							throw types::BAD_REQUEST;
+						}
+					}
+					size_t line_end = buffered.find("\r\n");
+					if (line_end == std::string::npos) {
+						line.append(buffered);
+						c.consume_read(buffered.length());
+					}
+					else {
+						line.append(buffered, 0, line_end);
+						c.consume_read(line_end + 2);
+						if (line.empty())
+							throw types::BAD_REQUEST;
+						try {
+							return http::utils::atoul_base<http::utils::HEXDECIMAL>(line);
+						}
+						catch (std::logic_error&) {
+							throw types::BAD_REQUEST;
+						}
+					}
 				}
 			}
 		}
@@ -250,6 +267,10 @@ namespace http {
 			types::HttpStatus status_code = types::OK;
 			try {
 				std::string raw = c.read_buffer();
+				while (raw.find("\r\n\r\n") == std::string::npos) {
+					read_with_attempts(c, types::REQUEST_TIMEOUT);
+					raw = c.read_buffer();
+				}
 				std::stringstream   message_stream(raw);
 				std::string	single_line;
 				size_t consumed = 0;
