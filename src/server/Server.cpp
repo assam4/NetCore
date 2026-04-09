@@ -6,7 +6,7 @@
 namespace http {
 	namespace core {
 
-		Connection::Connection(int fd, uint16_t port) : _write_offset(0), _socket(fd), _local_port(port) {}
+		Connection::Connection(int fd, uint16_t port) : _write_offset(0), _local_port(port), _socket(fd) {}
 
 		Connection::~Connection() {}
 

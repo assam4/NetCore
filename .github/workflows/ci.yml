@@ -37,6 +37,13 @@ jobs:
         make >> ../../ci_output.txt 2>&1
         ls -l >> ../../ci_output.txt
 
+    - name: Build protocol tests
+      run: |
+        cd test/protocol
+        ls -l >> ../../ci_output.txt
+        make >> ../../ci_output.txt 2>&1
+        ls -l >> ../../ci_output.txt
+
     - name: Run vhosts tests
       run: cd test/vhosts && ./test >> ../../ci_output.txt 2>&1
 
@@ -45,6 +52,9 @@ jobs:
 
     - name: Run syntax tests
       run: cd test/syntax && ./test >> ../../ci_output.txt 2>&1
+
+    - name: Run protocol tests
+      run: cd test/protocol && ./test_protocol >> ../../ci_output.txt 2>&1
 
     - name: Upload CI output
       uses: actions/upload-artifact@v4

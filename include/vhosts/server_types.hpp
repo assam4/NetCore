@@ -10,6 +10,12 @@
 namespace   http {
     namespace core {
 
+        /**
+        * @class VirtualHost
+        * @brief Forward declaration of the validated virtual-host configuration model.
+        * @details Required by helper types that validate listen/name uniqueness.
+        *          Full definition is provided in virtualhost.hpp.
+        */
         class   VirtualHost;
 
         namespace types {

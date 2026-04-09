@@ -59,7 +59,13 @@ namespace http {
 				return "";
 			char buf[BUFFER_SIZE];
 			ssize_t n = ::recv(get_fd(), buf, sizeof(buf), 0);
-			if (n <= 0) {
+			if (n < 0) {
+				if (errno == EAGAIN || errno == EWOULDBLOCK)
+					return "";
+				invalidate();
+				return "";
+			}
+			if (n == 0) {
 				invalidate();
 				return "";
 			}

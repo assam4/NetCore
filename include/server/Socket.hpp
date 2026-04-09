@@ -8,6 +8,12 @@
 namespace http {
 	namespace core {
 
+		/**
+		 * @class NetException
+		 * @brief Exception type for socket/network related failures.
+		 * @details Stores a human-readable diagnostic message.
+		 *          Thrown by low-level networking helpers when setup or I/O fails.
+		 */
 		class NetException : public std::exception {
 			private:
 				std::string message;
@@ -17,6 +23,12 @@ namespace http {
 				virtual const char* what() const throw();
 		};
 
+		/**
+		 * @class Socket
+		 * @brief Base RAII wrapper for a native socket descriptor.
+		 * @details Maintains descriptor validity state and common socket setup.
+		 *          Serves as a parent for client and server specific socket types.
+		 */
 		class Socket {
 			private:
 				Socket(const Socket&);
@@ -36,6 +48,12 @@ namespace http {
 
 		};
 
+		/**
+		 * @class ClientSocket
+		 * @brief Connected socket abstraction for client-side I/O.
+		 * @details Provides raw send and buffered receive primitives.
+		 *          Applies connection-specific options like TCP_NODELAY.
+		 */
 		class ClientSocket : public Socket {
 			private:
 				static const int BUFFER_SIZE = 4096;
@@ -52,6 +70,12 @@ namespace http {
 				ssize_t send_raw(const char* data, std::size_t len);
 		};
 
+		/**
+		 * @class ServerSocket
+		 * @brief Listening socket abstraction for accepting new clients.
+		 * @details Wraps bind/listen configuration and accept operations.
+		 *          Used by the server core to produce connected descriptors.
+		 */
 		class ServerSocket : public Socket {
 			private:
 				ServerSocket(const ServerSocket&);

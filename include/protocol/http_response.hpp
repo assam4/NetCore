@@ -10,8 +10,20 @@
 namespace http {
 	namespace core {
 
+		/**
+		 * @class Response
+		 * @brief Response builder and serializer for HTTP replies.
+		 * @details Converts parsed request/result pairs into wire-ready responses.
+		 *          Populates status line, headers, and body/error page payload.
+		 */
 		class Response {
 			public:
+				/**
+				 * @struct _http_response
+				 * @brief Internal aggregate representing a complete HTTP response.
+				 * @details Stores protocol version, status, headers, and body text.
+				 *          Used as intermediate form before serialization.
+				 */
 				struct _http_response {
 					std::string _version;
 					types::HttpStatus _status;

@@ -10,6 +10,12 @@
 namespace http {
 	namespace core  {
 
+		/**
+		 * @class Connection
+		 * @brief Buffered wrapper over a connected client socket.
+		 * @details Stores read/write buffers and exposes incremental I/O helpers.
+		 *          Used by protocol parsers to consume input safely and progressively.
+		 */
 		class Connection {
 			private:
 				std::string  _read_buf;
@@ -39,6 +45,12 @@ namespace http {
 				static Connection* make_connection(class ServerSocket& server);
 		};
 
+		/**
+		 * @class Server
+		 * @brief In-memory registry of listening sockets and active clients.
+		 * @details Owns accepted connections and listener descriptors by fd.
+		 *          Provides lookup and lifecycle operations for reactor handlers.
+		 */
 		class Server {
 			private:
 				std::map<int, ServerSocket*> _listens;

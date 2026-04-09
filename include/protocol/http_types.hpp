@@ -86,6 +86,12 @@ namespace http {
 				DEL = 1 << 2
 			};
 
+			/**
+			 * @struct HttpError
+			 * @brief Lightweight exception that carries HTTP status context.
+			 * @details Wraps status code and optional message for parser/runtime errors.
+			 *          Allows throwing structured HTTP failures inside core logic.
+			 */
 			struct HttpError : std::exception {
 				types::HttpStatus code;
 				std::string message;
@@ -97,6 +103,12 @@ namespace http {
 				}
 			};
 
+			/**
+			 * @class StatusRegistry
+			 * @brief Static lookup for HTTP status reason phrases.
+			 * @details Maps status codes to standard textual descriptions.
+			 *          Used while building response start lines and error pages.
+			 */
 			class StatusRegistry {
 				private:
 					static const std::map<types::HttpStatus, std::string> _phrases;
@@ -108,6 +120,12 @@ namespace http {
 					static std::string get_phrase(types::HttpStatus status);
 			};
 
+			/**
+			 * @class MimeTypes
+			 * @brief Registry of file extension to MIME type mappings.
+			 * @details Loads mappings from configuration and serves content-type lookups.
+			 *          Used by response generation for static file delivery.
+			 */
 			class MimeTypes {
 				private:
 					static std::map<std::string, std::string> _types;

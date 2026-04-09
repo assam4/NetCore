@@ -8,6 +8,12 @@
 namespace http {
 	namespace core {
 
+		/**
+		 * @class AEventHandler
+		 * @brief Base interface for all reactor event handlers.
+		 * @details Provides a common contract for fd access and event processing.
+		 *          Implementations define read/write/accept behavior per descriptor.
+		 */
 		class AEventHandler {
 			public:
 				virtual ~AEventHandler() {}
@@ -16,6 +22,12 @@ namespace http {
 				virtual void clean_up() {}
 		};
 
+		/**
+		 * @class Dispatcher
+		 * @brief Reactor dispatcher that multiplexes I/O events.
+		 * @details Owns the polling descriptor and the handler registry.
+		 *          Registers/modifies/removes handlers and runs the event loop.
+		 */
 		class Dispatcher {
 			private:
 				static const int CONN_TIMEOUT = 30;
@@ -44,6 +56,12 @@ namespace http {
 		};
 
 
+		/**
+		 * @class AcceptHandler
+		 * @brief Handler responsible for accepting new client connections.
+		 * @details Reacts to readiness on a listening socket and creates clients.
+		 *          Passes accepted connections to the server/dispatcher pipeline.
+		 */
 		class AcceptHandler : public AEventHandler {
 			private:
 				int _fd;
@@ -60,6 +78,12 @@ namespace http {
 				void handle_event(uint32_t events);
 		};
 
+		/**
+		 * @class ConnectionHandler
+		 * @brief Handler for per-client read/write lifecycle in the reactor.
+		 * @details Processes socket events, tracks activity time, and performs cleanup.
+		 *          Integrates protocol parsing with non-blocking connection management.
+		 */
 		class ConnectionHandler : public AEventHandler {
 			private:
 				Connection* _conn;

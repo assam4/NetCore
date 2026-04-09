@@ -9,6 +9,12 @@
 namespace http {
 	namespace core {
 
+		/**
+		 * @class HttpServer
+		 * @brief Top-level HTTP server runtime orchestrator.
+		 * @details Initializes virtual hosts, server sockets, and reactor dispatcher.
+		 *          Coordinates startup, host matching, run loop, and graceful stop.
+		 */
 		class HttpServer {
 			private:
 				std::vector<VirtualHost> _virtual_hosts;

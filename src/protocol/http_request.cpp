@@ -3,17 +3,16 @@
 #include <sstream>
 #include <cctype>
 #include <algorithm>
+#include <stdexcept>
 
 namespace http {
 	namespace core {
 
-		const static size_t StartLineLength = 8192; // 8KB
-		const static size_t URILength = 4096; // 4KB
-		const static size_t	QueryLength = 2048; // 2KB
-		const static size_t SingleHeaderLength = 8192; // 8KB
-		const static size_t HeadersLength = 32768; // 32KB
-		const static size_t DefaultMaxBodyLength = 1024;// 1KB
+		Request::Request() {}
+		static const size_t MaxAttempts = 10000;
 
+				// Implementation of struct __start_line methods
+	
 		void	__start_line::query_validate() const {
 			const std::string	allowed = "-._~!$&'()*+,;=:/?";
 			if (query.empty())
@@ -40,26 +39,21 @@ namespace http {
 			if (line.compare(start, protocol_sep - start, "HTTP") == 0
 					&& (line.compare(protocol_sep + 1, end - protocol_sep, "1.0") == 0 
 						|| line.compare(protocol_sep + 1, end - protocol_sep, "1.1") == 0))
-				version = line.substr(start, end - start);
+				version = line.substr(start, end - start + 1);
 			else
 				throw types::HTTP_VERSION_NOT_SUPPORTED;
 		}
 
-		void	Request::parse_start_line(const std::string& line) {
-			start_line.critical_cases_check(line);
-			size_t	start_index = 0, end_index = line.find_first_of(' ');
-			if (!end_index || end_index == std::string::npos)
-				throw types::BAD_REQUEST;
-			start_line.parse_method(line, start_index, end_index);
-			start_index = end_index + 1;
-			end_index = line.find_first_of(' ', start_index);
-			if (end_index == std::string::npos)
-				throw types::BAD_REQUEST;
-			start_index = end_index + 1;
-			end_index = line.find_last_not_of("\r\n\0");
-			if (end_index == std::string::npos)
-				throw types::BAD_REQUEST;
-			start_line.parse_protocol(line, start_index, end_index);	
+
+		// Implementation of struct __header_map methods
+
+		// static util function
+		static std::string trim(const std::string& str) {
+			size_t start = str.find_first_not_of(" \t\r\n");
+			if (start == std::string::npos)
+				return "";
+			size_t end = str.find_last_not_of(" \t\r\n");
+			return str.substr(start, end - start + 1);
 		}
 
 		std::set<std::string>   __header_map::make_unique_headers_list() {
@@ -88,14 +82,6 @@ namespace http {
 		}
 
 		const std::set<std::string> __header_map::uniques = make_unique_headers_list();
-
-		static std::string trim(const std::string& str) {
-			size_t start = str.find_first_not_of(" \t");
-			if (start == std::string::npos)
-				return "";
-			size_t end = str.find_last_not_of(" \t");
-			return str.substr(start, end - start + 1);
-		}
 
 		std::vector<std::string>	__header_map::parse_values(const std::string& values) const {
 			std::vector<std::string>	result;
@@ -133,35 +119,165 @@ namespace http {
 			headerValues.erase(std::unique(headerValues.begin(), headerValues.end()), headerValues.end());
 		}
 
-		void	Request::check_mandatory_headers() const {
+
+		// Implementation of struct __body methos
+
+		size_t	__body::append_to(Connection& c, std::string& target, const std::string& data, size_t take) {
+			size_t buffered_lenght = data.length();
+			if (buffered_lenght < take)
+				take = buffered_lenght;
+			target.append(data, 0, take);
+			c.consume_read(take);
+			return take;
+		}
+		
+		void	__body::try_to_read(Connection& c) const {
+			size_t attempts = 0;
+			while (attempts < MaxAttempts) {
+				ssize_t	n = c.read_once();
+				if (n < 0)
+					throw types::BAD_REQUEST;
+				if (n == 0)
+					++attempts;
+				else
+					return;			// good keys
+			}
+			throw types::BAD_REQUEST;
+		}
+
+		void    __body::fixed_read(Connection& c, size_t content_len) {
+			size_t readed = 0;
+			while (readed < content_len) {
+				const std::string& buffered = c.read_buffer();
+				if (!buffered.empty())
+					readed += append_to(c, content, buffered, content_len - readed);
+				else
+					try_to_read(c);
+			}
+		}
+
+		void	__body::check_end_of(Connection& c) const {
+			std::string result;
+			while (result.length() < 2) {
+				const std::string& buffered = c.read_buffer();
+				if (buffered.empty())
+					try_to_read(c);
+				else {
+					size_t take = 2 - result.length();
+					result.append(buffered, 0, take);
+					c.consume_read(take);
+				}
+			}
+			if (result[0] != '\r' || result[1] != '\n')
+				throw types::BAD_REQUEST;
+		}
+
+		void    __body::chunked_read(Connection& c, const std::string& value) {
+			if (value != "chunked")
+				throw types::NOT_IMPLEMENTED;
+			for (size_t chunk_size = get_chunk_size(c); chunk_size; chunk_size = get_chunk_size(c)) {
+				fixed_read(c, chunk_size);
+				check_end_of(c);
+			}
+			check_end_of(c);
+		}
+
+		size_t	__body::get_chunk_size(Connection& c) {
+			std::string line;
+			while (true) {
+				size_t line_end = line.find("\r\n");
+				if (line_end != std::string::npos) {
+					std::string size_str = line.substr(0, line_end);
+					if (size_str.empty())
+						throw types::BAD_REQUEST;
+					size_t to_consume = line_end + 2;
+					c.consume_read(to_consume);
+					try {
+						return http::utils::atoul_base<http::utils::HEXDECIMAL>(size_str);
+					}
+					catch (std::logic_error&) {
+						throw types::BAD_REQUEST;
+					}
+				}
+				const std::string& buffered = c.read_buffer();
+				if (buffered.empty())
+					try_to_read(c);
+				else {
+					size_t to_add = buffered.length();
+					line.append(buffered, 0, to_add);
+				}
+			}
+		}
+
+		// Implementation class Request methods
+
+		std::map<std::string, std::vector<std::string> >::const_iterator	Request::check_mandatory_headers() const {
+			std::map<std::string, std::vector<std::string> >::const_iterator iter;
 			if (start_line.version == "HTTP/1.1"
 					&& headers.header_map.find("host") == headers.header_map.end())
 				throw types::BAD_REQUEST;
-			if ((start_line.method == types::POST)
-					&& headers.header_map.find("content-length") == headers.header_map.end()
-					&& headers.header_map.find("transfer-encoding") == headers.header_map.end())
+			iter = headers.header_map.find("transfer-encoding");
+			if (iter == headers.header_map.end())
+				iter = headers.header_map.find("content-length");
+			if (start_line.method == types::POST && iter == headers.header_map.end())
 				throw types::LENGTH_REQUIRED;
+			return iter;
 		}
 
-		std::pair<types::HttpStatus, Request> Request::parse_message(const std::string& message) {
+		void	Request::parse_start_line(const std::string& line) {
+			std::string normalized = line;
+			if (!normalized.empty() && normalized[normalized.length() - 1] == '\r')
+				normalized.erase(normalized.length() - 1);
+			start_line.critical_cases_check(normalized);
+			size_t	start_index = 0, end_index = normalized.find_first_of(' ');
+			if (!end_index || end_index == std::string::npos)
+				throw types::BAD_REQUEST;
+			start_line.parse_method(normalized, start_index, end_index);
+			start_index = end_index + 1;
+			end_index = normalized.find_first_of(' ', start_index);
+			if (end_index == std::string::npos)
+				throw types::BAD_REQUEST;
+			start_line.parse_uri(normalized, start_index, end_index);
+			start_index = end_index + 1;
+			end_index = normalized.find_last_not_of("\r\n\0");
+			if (end_index == std::string::npos)
+				throw types::BAD_REQUEST;
+			start_line.parse_protocol(normalized, start_index, end_index);	
+		}
+
+		std::pair<types::HttpStatus, Request> Request::parse_message(Connection& c) {
 			Request	parsed_request;
 			types::HttpStatus status_code = types::OK;
 			try {
-				std::stringstream   message_stream(message);
+				std::string raw = c.read_buffer();
+				std::stringstream   message_stream(raw);
 				std::string	single_line;
+				size_t consumed = 0;
 				std::getline(message_stream, single_line);
+				consumed += single_line.length() + 1;
 				parsed_request.parse_start_line(single_line);
 				size_t	headers_length = 0;
 				while (std::getline(message_stream, single_line)) {
+					consumed += single_line.length() + 1;
 					if (single_line.empty() || single_line[0] == '\r')
 						break ;
 					parsed_request.headers.parse_header(single_line, headers_length);
 				}
-				parsed_request.check_mandatory_headers();
+				c.consume_read(consumed);
+				std::map<std::string, std::vector<std::string> >::const_iterator body_parsing_mode = parsed_request.check_mandatory_headers();
+				if (body_parsing_mode != parsed_request.headers.header_map.end()) {
+					if (body_parsing_mode->second.empty())
+						throw types::BAD_REQUEST; 
+					else if ((body_parsing_mode->first)[0] == 'c')
+						parsed_request.body.fixed_read(c, http::utils::atoul_base<http::utils::DECIMAL>(body_parsing_mode->second.front()));
+					else 
+						parsed_request.body.chunked_read(c, body_parsing_mode->second.front());
+				}
 			}
 			catch(types::HttpStatus n) { status_code = n; }
 			catch(...) { status_code = types::INTERNAL_SERVER_ERROR; }
 			return std::make_pair(status_code, parsed_request);
 		}
+
 	}
 }

@@ -29,6 +29,12 @@ namespace http {
                 std::string autoindex;
             }; 
 
+            /**
+            * @struct __location_row_data
+            * @brief Forward declaration for raw location block data.
+            * @details Declared early to support self-referential server/location structures.
+            *          Full definition appears below with all location-specific directives.
+            */
             struct  __location_row_data;
 
             /**

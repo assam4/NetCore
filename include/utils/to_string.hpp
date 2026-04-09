@@ -8,6 +8,12 @@ namespace http {
 	namespace core {
 
 		template <typename T>
+		/**
+		 * @struct is_numeric
+		 * @brief Compile-time trait marking arithmetic types.
+		 * @details Defaults to false and is specialized for numeric primitives.
+		 *          Used to constrain generic to_string conversion helper.
+		 */
 		struct is_numeric {
 			enum { value = 0 };
 		};
@@ -32,7 +38,6 @@ namespace http {
 			ss << value;
 			return ss.str();
 		}
-
 	}
 }
 

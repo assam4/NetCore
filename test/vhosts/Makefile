@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++98 -Wall -Wextra -Werror -fsanitize=address \
-	-I../../include -I../../include/lexer -I../../include/parser -I../../include/vhosts
+	-I../../include -I../../include/lexer -I../../include/parser -I../../include/vhosts -I../../include/protocol
 
 SRC = test.cpp \
 	../../src/vhosts/virtualhost.cpp \

@@ -6,6 +6,12 @@
 namespace http {
 	namespace core {
 
+		/**
+		 * @class SignalHandler
+		 * @brief Centralized process signal management helper.
+		 * @details Installs handlers for shutdown-related OS signals.
+		 *          Exposes an atomic shutdown flag polled by the main loop.
+		 */
 		class SignalHandler {
 			private:
 				static volatile sig_atomic_t _shutdown;
