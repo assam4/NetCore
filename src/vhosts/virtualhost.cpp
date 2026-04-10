@@ -10,7 +10,7 @@ namespace http {
         VirtualHost VirtualHost::build(const config::parser::__server_row_data& data, const std::vector<VirtualHost>& servers) {
             return VirtualHost()
                     .set_listen(data.listen, servers)
-                    .set_server_names(data.server_name, servers)
+                    .set_server_names(data.server_name)
                     .set_error_pages(data.error_pages)
                     .set_index(data.index)
                     .set_allowed_methods(data.allowed_methods)
@@ -34,9 +34,9 @@ namespace http {
             return *this;
         }
 
-        VirtualHost& VirtualHost::set_server_names(const std::set<std::string>& data, const std::vector<VirtualHost>& servers) {
+        VirtualHost& VirtualHost::set_server_names(const std::set<std::string>& data) {
             std::set<std::string> mutable_names = data;
-            server_name.fill_server_names(mutable_names, servers);
+            server_name.fill_server_names(mutable_names);
             return *this;
         }
 
@@ -85,8 +85,21 @@ namespace http {
             return *this;
         }
 
+        types::__location VirtualHost::create_default_location() {
+            types::__location loc;
+            loc.route.path = "/";
+            loc.content.root = this->content.root;
+            loc.content.index = this->content.index;
+            loc.content.allowed_methods = this->content.allowed_methods;
+            loc.content.autoindex = this->content.autoindex;
+            loc.content.error_pages = this->content.error_pages;
+            loc.content.client_max_body_size = this->content.client_max_body_size;
+            return loc;
+        }
+
         VirtualHost& VirtualHost::set_locations(const std::vector<config::parser::__location_row_data>& data) {
             locations.clear();
+            bool has_root_location = false;
             for (std::vector<config::parser::__location_row_data>::const_iterator it = data.begin();
                  it != data.end();
                  ++it) {
@@ -105,7 +118,11 @@ namespace http {
                 loc.fill_cgi_extension(it->cgi_extension);
                 loc.fill_upload_location(it->upload_location);
                 locations.push_back(loc);
+                if (loc.route.path == "/")
+                    has_root_location = true;
             }
+            if (!has_root_location)
+                locations.push_back(create_default_location());
             return *this;
         }
 

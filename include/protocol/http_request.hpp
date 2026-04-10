@@ -13,7 +13,7 @@
 # include "server_types.hpp"
 # include "http_types.hpp"
 # include "Server.hpp"
-# include "to_numeric.hpp"
+# include "utils.hpp"
 
 namespace http {
 	namespace core {
@@ -36,9 +36,9 @@ namespace http {
                 std::string         query;
                 std::string         version;
                 types::HttpMethod   method;
-                
+
                 void    critical_cases_check(const std::string& line) const {
-                    if (line.empty() || line.length() > StartLineLength 
+                    if (line.empty() || line.length() > StartLineLength
 					        || line.find_first_of("\r\n\t") != std::string::npos)
 				    throw types::BAD_REQUEST;
                 }
@@ -58,7 +58,7 @@ namespace http {
 			        uri = line.substr(start, length);
 			        extract_uri();
                 }
-            
+
                 void    parse_protocol(const std::string&, size_t, size_t);
             private:
                 void    extract_uri() {

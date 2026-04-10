@@ -3,8 +3,10 @@
 namespace http {
 	namespace core {
 
+
+		volatile sig_atomic_t http::core::SignalHandler::_shutdown = 0;
+
 		void SignalHandler::setup() {
-			_shutdown = 0;
 			std::signal(SIGINT, SignalHandler::signal_handler);
 			std::signal(SIGTERM, SignalHandler::signal_handler);
 			std::signal(SIGPIPE, SIG_IGN);
@@ -15,7 +17,7 @@ namespace http {
 			_shutdown = 1;
 		}
 
-		volatile sig_atomic_t SignalHandler::get_shutdown() const { return _shutdown; }
+		sig_atomic_t SignalHandler::get_shutdown() { return _shutdown; }
 	}
 }
 

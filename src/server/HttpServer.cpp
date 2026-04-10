@@ -1,6 +1,7 @@
-#include "HttpServer.hpp"
 #include <csignal>
+#include "HttpServer.hpp"
 #include "config_store.hpp"
+#include "utils.hpp"
 
 #if defined(__linux__)
 # include <sys/epoll.h>
@@ -55,6 +56,7 @@ namespace http {
 
 		const VirtualHost* HttpServer::match_vhost(uint16_t port, const std::string& host_head) {
 			const VirtualHost* default_vhost = NULL;
+			std::string host = to_lowercase(host_head);
 			for (size_t i = 0; i < _virtual_hosts.size(); ++i) {
 				const std::set<types::__listen>& listens = _virtual_hosts[i].get_listen();
 				for (std::set<types::__listen>::const_iterator it = listens.begin(); it != listens.end(); ++it) {
@@ -62,7 +64,7 @@ namespace http {
 						continue;
 					const std::vector<std::string>& domain_names = _virtual_hosts[i].get_server_name();
 					for (size_t n = 0; n < domain_names.size(); ++n) {
-						if (host_head == domain_names[n])
+						if (host == domain_names[n])
 							return &_virtual_hosts[i];
 					}
 					if (it->default_server || default_vhost == NULL)
