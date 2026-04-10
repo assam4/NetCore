@@ -1,7 +1,7 @@
 #include "http_response.hpp"
 #include <fstream>
 #include <ctime>
-#include "to_string.hpp"
+#include "utils.hpp"
 #include "http_types.hpp"
 #include <sstream>
 #include <sys/stat.h>
@@ -34,9 +34,9 @@ namespace http {
 			res._body = body;
 		}
 
-		void Response::set_connection_field(_http_response& res, const Request::__http_request& req) {
+		void Response::set_connection_field(_http_response& res, const Request& req) {
 			std::string conn_value;
-			std::map<std::string, std::vector<std::string> >::const_iterator it = req.headers.find("Connection");
+			std::map<std::string, std::vector<std::string> >::const_iterator it = req.headers.get();
 			if (it != req.headers.end()) {
 				bool has_close = false;
 				bool has_keep_alive = false;
@@ -166,6 +166,10 @@ namespace http {
 				etag = compute_weak_etag(path);
 			if (!etag.empty())
 				res._headers["ETag"] = etag;
+		}
+
+		void Response::set_cache_control_field(Response::_http_response& res, const std::string& value) {
+			res._headers["Cache-Control"] = value;
 		}
 
 

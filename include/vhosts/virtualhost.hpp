@@ -25,7 +25,7 @@ namespace http {
             public:
                 static VirtualHost build(const config::parser::__server_row_data&, const std::vector<VirtualHost>&);
                 VirtualHost& set_listen(const std::set<std::string>& data, const std::vector<VirtualHost>&);
-                VirtualHost& set_server_names(const std::set<std::string>& data, const std::vector<VirtualHost>& servers);
+                VirtualHost& set_server_names(const std::set<std::string>& data);
                 VirtualHost& set_error_pages(const std::map<std::set<std::string>, std::string>& data);
                 VirtualHost& set_index(const std::set<std::string>& data);
                 VirtualHost& set_allowed_methods(const std::set<std::string>& data);
@@ -53,6 +53,7 @@ namespace http {
 
             private:
                 VirtualHost() {}
+                types::__location create_default_location();
 
                 std::set<types::__listen> listen;
                 types::__serv_name server_name;

@@ -12,7 +12,7 @@ namespace http {
 		static const size_t MaxAttempts = 10000;
 
 				// Implementation of struct __start_line methods
-	
+
 		void	__start_line::query_validate() const {
 			const std::string	allowed = "-._~!$&'()*+,;=:/?";
 			if (query.empty())
@@ -37,7 +37,7 @@ namespace http {
 			if (protocol_sep == std::string::npos)
 				throw types:: BAD_REQUEST;
 			if (line.compare(start, protocol_sep - start, "HTTP") == 0
-					&& (line.compare(protocol_sep + 1, end - protocol_sep, "1.0") == 0 
+					&& (line.compare(protocol_sep + 1, end - protocol_sep, "1.0") == 0
 						|| line.compare(protocol_sep + 1, end - protocol_sep, "1.1") == 0))
 				version = line.substr(start, end - start + 1);
 			else
@@ -130,7 +130,7 @@ namespace http {
 			c.consume_read(take);
 			return take;
 		}
-		
+
 		void	__body::try_to_read(Connection& c) const {
 			size_t attempts = 0;
 			while (attempts < MaxAttempts) {
@@ -193,7 +193,7 @@ namespace http {
 					size_t to_consume = line_end + 2;
 					c.consume_read(to_consume);
 					try {
-						return http::utils::atoul_base<http::utils::HEXDECIMAL>(size_str);
+						return atoul_base<HEXDECIMAL>(size_str);
 					}
 					catch (std::logic_error&) {
 						throw types::BAD_REQUEST;
@@ -242,7 +242,7 @@ namespace http {
 			end_index = normalized.find_last_not_of("\r\n\0");
 			if (end_index == std::string::npos)
 				throw types::BAD_REQUEST;
-			start_line.parse_protocol(normalized, start_index, end_index);	
+			start_line.parse_protocol(normalized, start_index, end_index);
 		}
 
 		std::pair<types::HttpStatus, Request> Request::parse_message(Connection& c) {
@@ -267,10 +267,10 @@ namespace http {
 				std::map<std::string, std::vector<std::string> >::const_iterator body_parsing_mode = parsed_request.check_mandatory_headers();
 				if (body_parsing_mode != parsed_request.headers.header_map.end()) {
 					if (body_parsing_mode->second.empty())
-						throw types::BAD_REQUEST; 
+						throw types::BAD_REQUEST;
 					else if ((body_parsing_mode->first)[0] == 'c')
-						parsed_request.body.fixed_read(c, http::utils::atoul_base<http::utils::DECIMAL>(body_parsing_mode->second.front()));
-					else 
+						parsed_request.body.fixed_read(c, atoul_base<DECIMAL>(body_parsing_mode->second.front()));
+					else
 						parsed_request.body.chunked_read(c, body_parsing_mode->second.front());
 				}
 			}

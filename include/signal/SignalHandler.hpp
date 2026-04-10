@@ -22,7 +22,7 @@ namespace http {
 				static void signal_handler(int sig);
 			public:
 				static void setup();
-				static volatile sig_atomic_t get_shutdown();
+				static sig_atomic_t get_shutdown();
 		};
 
 	}

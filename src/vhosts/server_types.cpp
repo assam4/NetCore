@@ -2,6 +2,7 @@
 #include "virtualhost.hpp"
 #include <iostream>
 #include "http_types.hpp"
+#include "utils.hpp"
 #include <cstdlib>
 #include <exception>
 #include <cctype>
@@ -62,12 +63,16 @@ namespace   http {
                 field.erase(0, end);
             }
 
-            void    __serv_name::fill_server_names(std::set<std::string>& data, const std::vector<VirtualHost>& servers) {
-                (void)servers;
+            void    __serv_name::fill_server_names(std::set<std::string>& data) {
                 if (data.empty())
                     server_name.push_back("");
-                else
-                    server_name.assign(data.begin(), data.end());
+                else {
+                    std::set<std::string>::iterator it;
+                    for (it = data.begin(); it != data.end(); ++it) {
+                        std::string name = to_lowercase(*it);
+                        server_name.push_back(name);
+                    }
+                }
             }
 
             void    __content::fill_error_pages(const std::map<std::set<std::string>, std::string>& data) {
@@ -111,7 +116,7 @@ namespace   http {
 
             void    __content::fill_root(const std::string& data) {
                 if (data.empty())
-                    root = "html";
+                    root = "/var/www/html";
                 else {
                     if (data[0] != '/')
                         throw std::runtime_error("Parsing error: Invalid root field: '" + data + "'.\n");

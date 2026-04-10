@@ -5,38 +5,41 @@ CXXFLAGS = -Wall -Wextra -Werror -std=c++98 \
            -I../../include/parser \
            -I../../include/lexer \
            -I../../include/vhosts \
+           -I../../include/signal \
+           -I../../include/protocol \
+           -I../../include/utils \
            -pthread
 
 LDFLAGS = -pthread
 
-# Source files for main test
+TARGET = test
+REACTOR_TARGET = test_reactor
+
+# ===================== SOURCES =====================
+
 SERVER_SRC = ../../src/server/Reactor.cpp \
-			 ../../src/server/Socket.cpp \
+             ../../src/server/Socket.cpp \
              ../../src/server/Server.cpp \
              ../../src/server/HttpServer.cpp \
              ../../src/lexer/tokenize_factory.cpp \
              ../../src/parser/configparser.cpp \
              ../../src/vhosts/virtualhost.cpp \
              ../../src/vhosts/server_types.cpp \
-              test.cpp
+             ../../src/signal/SignalHandler.cpp \
+             test.cpp
 
-# Source files for reactor test
 REACTOR_SRC = ../../src/server/Reactor.cpp \
               ../../src/server/Socket.cpp \
               ../../src/server/Server.cpp \
-              test_reactor.cpp
 
-# Object files
-SERVER_OBJ = $(SERVER_SRC:.cpp=.o)
-REACTOR_OBJ = $(REACTOR_SRC:.cpp=.o)
+# ===================== OBJECTS (SEPARATED!) =====================
 
-# Targets
-TARGET = test
-REACTOR_TARGET = test_reactor
+SERVER_OBJ = $(SERVER_SRC:.cpp=.server.o)
+REACTOR_OBJ = $(REACTOR_SRC:.cpp=.reactor.o)
 
-.PHONY: all clean re run test_reactor
+# ===================== RULES =====================
 
-all: $(TARGET) $(REACTOR_TARGET)
+all: $(TARGET)
 
 $(TARGET): $(SERVER_OBJ)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
@@ -44,16 +47,27 @@ $(TARGET): $(SERVER_OBJ)
 $(REACTOR_TARGET): $(REACTOR_OBJ)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
-%.o: %.cpp
+# ===================== COMPILE RULE =====================
+
+%.server.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-clean:
-	rm -f $(SERVER_OBJ) $(REACTOR_OBJ) $(TARGET) $(REACTOR_TARGET)
+%.reactor.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-re: clean all
+# ===================== CLEAN =====================
+
+clean:
+	rm -f *.server.o *.reactor.o $(TARGET) $(REACTOR_TARGET)
+
+fclean: clean
+
+re: fclean all
 
 run: $(TARGET)
 	./$(TARGET)
 
-test_reactor: $(REACTOR_TARGET)
+run_reactor: $(REACTOR_TARGET)
 	./$(REACTOR_TARGET)
+
+.PHONY: all clean fclean re run run_reactor

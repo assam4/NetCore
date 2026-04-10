@@ -54,7 +54,7 @@ namespace   http {
             struct  __serv_name {
                 std::vector<std::string>    server_name;
 
-                void  fill_server_names(std::set<std::string>&, const std::vector<VirtualHost>&);
+                void  fill_server_names(std::set<std::string>&);
             };
 
             /**
