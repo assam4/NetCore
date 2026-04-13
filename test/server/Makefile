@@ -26,11 +26,25 @@ SERVER_SRC = ../../src/server/Reactor.cpp \
              ../../src/vhosts/virtualhost.cpp \
              ../../src/vhosts/server_types.cpp \
              ../../src/signal/SignalHandler.cpp \
+             ../../src/protocol/http_request.cpp \
+             ../../src/protocol/http_response.cpp \
+             ../../src/protocol/http_types.cpp \
+             ../../src/protocol/http_transaction.cpp \
              test.cpp
 
 REACTOR_SRC = ../../src/server/Reactor.cpp \
               ../../src/server/Socket.cpp \
               ../../src/server/Server.cpp \
+              ../../src/server/HttpServer.cpp \
+              ../../src/lexer/tokenize_factory.cpp \
+              ../../src/parser/configparser.cpp \
+              ../../src/vhosts/virtualhost.cpp \
+              ../../src/vhosts/server_types.cpp \
+              ../../src/signal/SignalHandler.cpp \
+              ../../src/protocol/http_request.cpp \
+              ../../src/protocol/http_response.cpp \
+              ../../src/protocol/http_types.cpp \
+              ../../src/protocol/http_transaction.cpp \
 
 # ===================== OBJECTS (SEPARATED!) =====================
 

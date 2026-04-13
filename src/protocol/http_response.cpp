@@ -1,16 +1,89 @@
 #include "http_response.hpp"
 #include <fstream>
 #include <ctime>
-#include "utils.hpp"
-#include "http_types.hpp"
 #include <sstream>
 #include <sys/stat.h>
+#include <dirent.h>
+#include <algorithm>
+#include "utils.hpp"
+#include "http_types.hpp"
 
 namespace http {
 	namespace core {
 
+		bool Response::check_conditional(const Request& req, const Response::_http_response& res) {
+			const std::map<std::string, std::vector<std::string> >& header_map = req.headers.header_map;
+			std::map<std::string, std::vector<std::string> >::const_iterator inm = header_map.find("if-none-match");
+			if (inm != header_map.end()) {
+				std::map<std::string, std::string>::const_iterator etag_it = res._headers.find("ETag");
+				if (etag_it != res._headers.end()) {
+					for (size_t i = 0; i < inm->second.size(); ++i) {
+						if (inm->second[i] == "*" ||
+							inm->second[i] == etag_it->second)
+							return true;
+					}
+				}
+			}
+			std::map<std::string, std::vector<std::string> >::const_iterator ims = header_map.find("if-modified-since");
+			if (ims != header_map.end() && !ims->second.empty()) {
+				std::map<std::string, std::string>::const_iterator lm_it = res._headers.find("Last-Modified");
+				if (lm_it != res._headers.end()) {
+					if (lm_it->second <= ims->second.front())
+						return true;
+				}
+			}
+			return false;
+		}
+
+		bool Response::check_precondition(const Request& req, const Response::_http_response& res) {
+			const std::map<std::string, std::vector<std::string> >& header_map = req.headers.header_map;
+			std::map<std::string, std::vector<std::string> >::const_iterator im =
+			header_map.find("if-match");
+			if (im != header_map.end()) {
+			std::map<std::string, std::string>::const_iterator etag_it = res._headers.find("ETag");
+			bool matched = false;
+			for (size_t i = 0; i < im->second.size(); ++i) {
+				if (im->second[i] == "*" ||
+					(etag_it != res._headers.end() &&
+					 im->second[i] == etag_it->second)) {
+					matched = true;
+					break;
+				}
+			}
+			if (!matched)
+				return true;
+			}
+			std::map<std::string, std::vector<std::string> >::const_iterator ius = header_map.find("if-unmodified-since");
+			if (ius != header_map.end() && !ius->second.empty()) {
+				std::map<std::string, std::string>::const_iterator lm_it = res._headers.find("Last-Modified");
+				if (lm_it != res._headers.end()) {
+					if (lm_it->second > ius->second.front())
+						return true;
+				}
+			}
+			return false;
+		}
+
+
+		std::string Response::uri_encode(const std::string& uri) {
+			std::string encoded;
+			static const char hex[] = "0123456789abcdef";
+			for (size_t i = 0; i < uri.size(); ++i) {
+				unsigned char c = static_cast<unsigned char>(uri[i]);
+				if (std::isalnum(c) || c == '-' || c == '_' ||
+						c == '.' || c == '~' || c == '/')
+					encoded += c;
+				else {
+					encoded += '%';
+					encoded += hex[c >> 4];
+					encoded += hex[c & 0xF];
+				}
+			}
+			return encoded;
+		}
+
 		std::string Response::read_file(const std::string& path) {
-			std::ifstream file(path.c_str());
+			std::ifstream file(path.c_str(), std::ios::binary);
 			if (!file.is_open())
 				return "";
 			std::stringstream ss;
@@ -18,32 +91,124 @@ namespace http {
 			return ss.str();
 		}
 
-		void Response::make_error(_http_response& res,types::HttpStatus status) {
-			if (status != types::OK)
-				res._status = status;
+		std::string Response::resolve_path(const std::string& root, const std::string& uri) {
+			std::string path = root;
+			if (!path.empty() && path[path.size() - 1] == '/')
+				path.erase(path.size() - 1);
+			if (uri.empty() || uri[0] != '/')
+				path += '/';
+			path += uri;
+			return path;
+		}
+
+		std::string Response::find_index(const std::string& dir_path, const std::set<std::string>& index_files) {
+			for (std::set<std::string>::const_iterator it = index_files.begin(); it != index_files.end(); ++it) {
+				std::string full = dir_path;
+				if (!full.empty() && full[full.size() - 1] != '/')
+					full += '/';
+				full += *it;
+				struct stat st;
+				if (stat(full.c_str(), &st) == 0 && S_ISREG(st.st_mode))
+					return full;
+			}
+			return "";
+		}
+
+		std::string Response::build_directory_listing(const std::string& uri, const std::string& dir_path) {
+			DIR* dir = opendir(dir_path.c_str());
+			if (!dir)
+				return "";
+			std::ostringstream html;
+			html << "<!DOCTYPE html>\r\n<html>\r\n<head><title>Index of "
+				 << uri << "</title></head>\r\n<body>\r\n"
+				 << "<h1>Index of " << uri << "</h1>\r\n<hr>\r\n<pre>\r\n";
+			struct dirent* entry;
+			while ((entry = readdir(dir)) != NULL) {
+				std::string name = entry->d_name;
+				if (name == "." || name == "..")
+					continue;
+				std::string full = dir_path;
+				if (!full.empty() && full[full.size() - 1] != '/')
+					full += '/';
+				full += name;
+				struct stat st;
+				if (stat(full.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
+					name += '/';
+				html << "<a href=\"" << uri_encode(name) << "\">" << name << "</a>\r\n";
+			}
+			closedir(dir);
+			html << "</pre>\r\n<hr>\r\n</body>\r\n</html>\r\n";
+			return html.str();
+		}
+
+		void Response::make_error(_http_response& res, types::HttpStatus status, const std::map<uint16_t, std::string>& error_pages) {
+			res._status = status;
 			res._headers["Content-Type"] = "text/html";
-			std::stringstream ss;
-			ss << status;
-			std::string path = "../../error/" + ss.str() + ".html";
+			std::map<uint16_t, std::string>::const_iterator it = error_pages.find(static_cast<uint16_t>(status));
+			if (it != error_pages.end()) {
+				std::string body = read_file(it->second);
+				if (!body.empty()) {
+					res._body = body;
+					return;
+				}
+			}
+			res._body = types::DefaultErrorPages::get_default_content(static_cast<uint16_t>(status));
+		}
+
+		void Response::make_redirect(_http_response& res, uint16_t code, const std::string& new_path) {
+			res._status = static_cast<types::HttpStatus>(code);
+			res._headers["Location"] = new_path;
+			res._headers["Content-Type"] = "text/html";
+			std::ostringstream ss;
+			ss << "<!DOCTYPE html>\r\n<html>\r\n<body>\r\n<h1>"
+			   << code << " "
+			   << types::StatusRegistry::get_phrase(static_cast<types::HttpStatus>(code))
+			   << "</h1>\r\n<p>Redirecting to <a href=\""
+			   << new_path << "\">" << new_path
+			   << "</a></p>\r\n</body>\r\n</html>\r\n";
+			res._body = ss.str();
+		}
+
+		void Response::make_static(_http_response& res, const std::string& path) {
 			std::string body = read_file(path);
 			if (body.empty()) {
-				ss.clear();
-				ss << "<html><body><h1>" << status << " Error</h1></body></html>";
-				body = ss.str();
+				make_error(res, types::NOT_FOUND, std::map<uint16_t, std::string>());
+				return;
 			}
+			res._status = types::OK;
 			res._body = body;
+			set_content_type_field(res, path);
+			set_last_modified_field(res, path);
+			set_etag_field(res, path, false);
+		}
+
+		void Response::make_autoindex(_http_response& res, const std::string& uri, const std::string& dir_path) {
+			std::string body = build_directory_listing(uri, dir_path);
+			if (body.empty()) {
+				make_error(res, types::FORBIDDEN, std::map<uint16_t, std::string>());
+				return;
+			}
+			res._status = types::OK;
+			res._body   = body;
+			res._headers["Content-Type"] = "text/html";
+		}
+
+		void Response::make_cgi(_http_response& res, const Request& req, const std::string& path, const std::string& ext) {
+			// Wire in your CGI runner here.
+			(void)req; (void)path; (void)ext;
+			make_error(res, types::NOT_IMPLEMENTED, std::map<uint16_t, std::string>());
 		}
 
 		void Response::set_connection_field(_http_response& res, const Request& req) {
+			const std::map<std::string, std::vector<std::string> >& header_map = req.headers.header_map;
+			std::map<std::string, std::vector<std::string> >::const_iterator it = header_map.find("connection");
 			std::string conn_value;
-			std::map<std::string, std::vector<std::string> >::const_iterator it = req.headers.get();
-			if (it != req.headers.end()) {
-				bool has_close = false;
+			if (it != header_map.end()) {
+				bool has_close  = false;
 				bool has_keep_alive = false;
 				for (std::vector<std::string>::const_iterator vit = it->second.begin(); vit != it->second.end(); ++vit) {
 					std::string token = *vit;
-					for (size_t i = 0; i < token.size(); ++i)
-						token[i] = tolower(token[i]);
+					std::transform(token.begin(), token.end(), token.begin(), static_cast<int(*)(int)>(std::tolower));
 					if (token.find("close") != std::string::npos)
 						has_close = true;
 					else if (token.find("keep-alive") != std::string::npos)
@@ -51,15 +216,12 @@ namespace http {
 				}
 				if (has_close)
 					conn_value = "close";
-				else if (has_keep_alive && req.version == "HTTP/1.1")
+				else if (has_keep_alive && req.start_line.version == "HTTP/1.1")
 					conn_value = "keep-alive";
 				else
 					conn_value = "close";
 			} else {
-				if (req.version == "HTTP/1.1")
-					conn_value = "keep-alive";
-				else
-					conn_value = "close";
+				conn_value = (req.start_line.version == "HTTP/1.1") ? "keep-alive" : "close";
 			}
 			res._headers["Connection"] = conn_value;
 		}
@@ -68,46 +230,37 @@ namespace http {
 			res._headers["Server"] = "webserv";
 		}
 
-		void Response::set_date_field(Response::_http_response& res) {
+		void Response::set_date_field(_http_response& res) {
 			std::time_t t = std::time(NULL);
 			std::tm* gmt = std::gmtime(&t);
-			char date[100];
+			char date[128];
 			std::strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S GMT", gmt);
 			res._headers["Date"] = std::string(date);
 		}
 
-		void Response::set_body_length_field(Response::_http_response& res) {
-			bool is_http_1_1 = (res._version == "HTTP/1.1");
+		void Response::set_body_length_field(_http_response& res) {
+			bool is_1_1 = (res._version == "HTTP/1.1");
 			std::string connection = "close";
 			std::map<std::string, std::string>::const_iterator it = res._headers.find("Connection");
 			if (it != res._headers.end())
 				connection = it->second;
-			bool body_known = !res._body.empty();
-			if (is_http_1_1) {
-				if (body_known)
-					res._headers["Content-Length"] = to_string(res._body.size());
-				else {
-					if (connection == "keep-alive")
-						res._headers["Transfer-Encoding"] = "chunked";
-				}
-			} else {
-				if (body_known)
-					res._headers["Content-Length"] = to_string(res._body.size());
-				else
-					res._headers["Connection"] = "close";
-			}
+			if (!res._body.empty())
+				res._headers["Content-Length"] = to_string(res._body.size());
+			else if (is_1_1 && connection == "keep-alive")
+				res._headers["Transfer-Encoding"] = "chunked";
+			else
+				res._headers["Connection"] = "close";
 		}
 
-		void Response::set_content_type_field(Response::_http_response& res, const std::string& path) {
+		void Response::set_content_type_field(_http_response& res, const std::string& path) {
 			std::string ext;
 			size_t pos = path.find_last_of('.');
 			if (pos != std::string::npos && pos + 1 < path.size())
-				ext = path.substr(pos + 1);
-			std::string mime_type = types::MimeTypes::get_mime_type(ext);
-			res._headers["Content-Type"] = mime_type;
+				ext = path.substr(pos);
+			res._headers["Content-Type"] = types::MimeTypes::get_mime_type(ext);
 		}
 
-		void Response::set_allow_field(Response::_http_response& res, uint8_t methods) {
+		void Response::set_allow_field(_http_response& res, uint8_t methods) {
 			std::string list;
 			if (methods & types::GET)
 				list += "GET";
@@ -124,11 +277,11 @@ namespace http {
 			res._headers["Allow"] = list;
 		}
 
-		void Response::set_last_modified_field(Response::_http_response& res, const std::string& path) {
+		void Response::set_last_modified_field(_http_response& res, const std::string& path) {
 			struct stat buffer;
 			if (stat(path.c_str(), &buffer) == 0) {
 				std::tm* gmt = std::gmtime(&buffer.st_mtime);
-				char date[100];
+				char date[128];
 				std::strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S GMT", gmt);
 				res._headers["Last-Modified"] = std::string(date);
 			}
@@ -138,10 +291,10 @@ namespace http {
 			std::string body = read_file(path);
 			if (body.empty())
 				return "";
-			//FNV-1a
+			// FNV-1a 32-bit
 			uint32_t hash = 2166136261u;
 			for (size_t i = 0; i < body.size(); ++i) {
-				hash ^= (unsigned char)body[i];
+				hash ^= static_cast<unsigned char>(body[i]);
 				hash *= 16777619u;
 			}
 			std::ostringstream oss;
@@ -158,20 +311,157 @@ namespace http {
 			return oss.str();
 		}
 
-		void Response::set_etag_field(Response::_http_response& res, const std::string& path, bool use_strong) {
-			std::string etag;
-			if (use_strong)
-				etag = compute_strong_etag(path);
-			else
-				etag = compute_weak_etag(path);
+		void Response::set_etag_field(_http_response& res, const std::string& path, bool use_strong) {
+			std::string etag = use_strong ? compute_strong_etag(path) : compute_weak_etag(path);
 			if (!etag.empty())
 				res._headers["ETag"] = etag;
 		}
 
-		void Response::set_cache_control_field(Response::_http_response& res, const std::string& value) {
-			res._headers["Cache-Control"] = value;
+		Response::_http_response Response::make_response(const std::pair<types::HttpStatus, Request>& status_req, const types::__location& location) {
+			_http_response res;
+			res._version  = "HTTP/1.1";
+			res._status   = types::OK;
+			const types::HttpStatus parse_status = status_req.first;
+			const Request& req = status_req.second;
+
+			// ── 1. Parse error ────────────────────────────────────────────────────
+			if (parse_status != types::OK) {
+				make_error(res, parse_status, location.content.error_pages);
+				set_server_field(res);
+				set_date_field(res);
+				set_connection_field(res, req);
+				set_body_length_field(res);
+				return res;
+			}
+
+			// ── 2. Method not allowed ─────────────────────────────────────────────
+			if (!(location.content.allowed_methods &
+				  static_cast<uint8_t>(req.start_line.method))) {
+				make_error(res, types::METHOD_NOT_ALLOWED, location.content.error_pages);
+				set_allow_field(res, location.content.allowed_methods);
+				set_server_field(res);
+				set_date_field(res);
+				set_connection_field(res, req);
+				set_body_length_field(res);
+				return res;
+			}
+
+			// ── 3. Redirect — RFC 7231 §7.1.2 (Location header) ──────────────────
+			if (location.route.code != 0) {
+				make_redirect(res, location.route.code, location.route.new_path);
+				set_server_field(res);
+				set_date_field(res);
+				set_connection_field(res, req);
+				set_body_length_field(res);
+				return res;
+			}
+
+			// ── 4. Resolve filesystem path ────────────────────────────────────────
+			std::string fs_path = resolve_path(location.content.root,
+											   req.start_line.uri);
+			struct stat st;
+			if (stat(fs_path.c_str(), &st) != 0) {
+				make_error(res, types::NOT_FOUND, location.content.error_pages);
+				set_server_field(res);
+				set_date_field(res);
+				set_connection_field(res, req);
+				set_body_length_field(res);
+				return res;
+			}
+
+			// ── 5. Directory ──────────────────────────────────────────────────────
+			if (S_ISDIR(st.st_mode)) {
+				std::string index_path = find_index(fs_path, location.content.index);
+				if (!index_path.empty()) {
+					fs_path = index_path;
+					if (stat(fs_path.c_str(), &st) != 0) {
+						make_error(res, types::NOT_FOUND, location.content.error_pages);
+						set_server_field(res);
+						set_date_field(res);
+						set_connection_field(res, req);
+						set_body_length_field(res);
+						return res;
+					}
+				} else if (location.content.autoindex) {
+					make_autoindex(res, req.start_line.uri, fs_path);
+					set_server_field(res);
+					set_date_field(res);
+					set_connection_field(res, req);
+					set_body_length_field(res);
+					return res;
+				} else {
+					make_error(res, types::FORBIDDEN, location.content.error_pages);
+					set_server_field(res);
+					set_date_field(res);
+					set_connection_field(res, req);
+					set_body_length_field(res);
+					return res;
+				}
+			}
+
+			// ── 6. CGI ────────────────────────────────────────────────────────────
+			if (!location.cgi_extension.empty()) {
+				size_t dot = fs_path.find_last_of('.');
+				if (dot != std::string::npos) {
+					std::string ext = fs_path.substr(dot);
+					if (location.cgi_extension.find(ext) !=
+						location.cgi_extension.end()) {
+						make_cgi(res, req, fs_path, ext);
+						set_server_field(res);
+						set_date_field(res);
+						set_connection_field(res, req);
+						set_body_length_field(res);
+						return res;
+					}
+				}
+			}
+
+			// ── 7. Static file ────────────────────────────────────────────────────
+			// make_static sets ETag + Last-Modified — conditional checks must come after
+			make_static(res, fs_path);
+
+			// ── 8. Conditional request checks (RFC 7232) ──────────────────────────
+			// RFC 7232 §6: evaluate If-Match / If-Unmodified-Since BEFORE
+			//              If-None-Match / If-Modified-Since
+			if (check_precondition(req, res)) {
+				// If-Match failed or If-Unmodified-Since failed → 412
+				make_error(res, types::PRECONDITION_FAILED, location.content.error_pages);
+			} else if (req.start_line.method == types::GET &&
+					   check_conditional(req, res)) {
+				// If-None-Match or If-Modified-Since matched → 304
+				// RFC 7232 §4.1: keep ETag + Last-Modified, drop body + content headers
+				res._status = types::NOT_MODIFIED;
+				res._body.clear();
+				res._headers.erase("Content-Type");
+				res._headers.erase("Content-Length");
+				res._headers.erase("Transfer-Encoding");
+			}
+
+			// ── 9. POST upload: 201 Created ───────────────────────────────────────
+			// After saving the uploaded file in your upload handler, set:
+			//   res._status                      = types::CREATED;
+			//   res._headers["Location"]         = saved_uri; // RFC 7231 §7.1.2
+			//   res._headers["Content-Location"] = saved_uri; // RFC 7231 §3.1.4.2
+
+			set_server_field(res);
+			set_date_field(res);
+			set_connection_field(res, req);
+			set_body_length_field(res);
+			return res;
 		}
 
-
+		std::string Response::serialize(const _http_response& response) {
+			std::ostringstream out;
+			out << response._version << " "
+				<< static_cast<int>(response._status) << " "
+				<< types::StatusRegistry::get_phrase(response._status)
+				<< "\r\n";
+			for (std::map<std::string, std::string>::const_iterator it = response._headers.begin(); it != response._headers.end(); ++it)
+				out << it->first << ": " << it->second << "\r\n";
+			out << "\r\n";
+			if (!response._body.empty())
+				out << response._body;
+			return out.str();
+		}
 	}
 }

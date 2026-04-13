@@ -1,4 +1,4 @@
-#include <csignal>
+#include <algorithm>
 #include "HttpServer.hpp"
 #include "config_store.hpp"
 #include "utils.hpp"
@@ -13,8 +13,6 @@
 
 namespace http {
 	namespace core {
-
-
 
 		HttpServer::HttpServer() {}
 
@@ -43,8 +41,9 @@ namespace http {
 						std::cerr << "bind() failed for " << lit->host << ":" << lit->port << "\n";
 						continue ;
 					}
+					std::cout << "Listener -> " << sockaddr_to_string(addrs[j].first) << std::endl;
 					_server.add_socket(ss);
-					AcceptHandler* ah = new AcceptHandler(raw_fd, _server, _dispatcher);
+					AcceptHandler* ah = new AcceptHandler(raw_fd, _server, _dispatcher, *this);
 					#if defined(__linux__)
 						_dispatcher.register_handler(ah, EPOLLIN);
 					#elif defined(__APPLE__) || defined(__FreeBSD__)
@@ -52,11 +51,17 @@ namespace http {
 					#endif
 				}
 			}
+			if (_server.get_sockets().size() == 0)
+				throw std::runtime_error("Not have listener");
 		}
 
-		const VirtualHost* HttpServer::match_vhost(uint16_t port, const std::string& host_head) {
+		const VirtualHost* HttpServer::find_vhost(uint16_t port, const std::string& host_head) {
 			const VirtualHost* default_vhost = NULL;
-			std::string host = to_lowercase(host_head);
+			std::string host = host_head;
+			size_t colon_pos = host.find(':');
+			if (colon_pos != std::string::npos)
+				host.erase(colon_pos);
+			std::transform(host.begin(), host.end(), host.begin(), static_cast<int(*)(int)>(std::tolower));
 			for (size_t i = 0; i < _virtual_hosts.size(); ++i) {
 				const std::set<types::__listen>& listens = _virtual_hosts[i].get_listen();
 				for (std::set<types::__listen>::const_iterator it = listens.begin(); it != listens.end(); ++it) {

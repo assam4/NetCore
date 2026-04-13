@@ -1,4 +1,5 @@
 #include "tokenize_factory.hpp"
+#include <SignalHandler.hpp>
 
 namespace http {
 	namespace config {

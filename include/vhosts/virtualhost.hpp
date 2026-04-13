@@ -63,6 +63,7 @@ namespace http {
         };
 
         std::vector<std::pair<sockaddr_storage, socklen_t> >    transform_to_sstorage(const VirtualHost&);
+        std::string sockaddr_to_string(sockaddr_storage& ss);
     }
 }
 

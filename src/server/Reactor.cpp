@@ -8,6 +8,10 @@
 	#error "Unsupported platform"
 #endif
 #include "Reactor.hpp"
+#include "HttpServer.hpp"
+#include "http_request.hpp"
+#include "http_response.hpp"
+#include "http_transaction.hpp"
 #include <stdexcept>
 #include <unistd.h>
 #include <iostream>
@@ -156,8 +160,8 @@ namespace http {
 			}
 		}
 
-		AcceptHandler::AcceptHandler(int fd, Server& server, Dispatcher& dispatcher) :
-			_fd(fd), _server(server), _dispatcher(dispatcher) {}
+		AcceptHandler::AcceptHandler(int fd, Server& server, Dispatcher& dispatcher, HttpServer& http_server) :
+			_fd(fd), _server(server), _dispatcher(dispatcher), _http_server(http_server) {}
 
 		AcceptHandler::~AcceptHandler() {}
 
@@ -182,7 +186,7 @@ namespace http {
 			Connection	*conn = _server.accept_client(_fd);
 			if (!conn)
 				return ;
-			ConnectionHandler *h = new ConnectionHandler(conn, _server, _dispatcher);
+			ConnectionHandler *h = new ConnectionHandler(conn, _server, _dispatcher, _http_server);
 			#if defined(__linux__)
 				_dispatcher.register_handler(h, (EPOLLIN | EPOLLRDHUP));
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
@@ -190,8 +194,8 @@ namespace http {
 			#endif
 		}
 
-		ConnectionHandler::ConnectionHandler(Connection* conn, Server& srv, Dispatcher& disp)
-			: _conn(conn), _server(srv), _dispatcher(disp), _half_closed(false), _last_active(time(NULL)) {}
+ConnectionHandler::ConnectionHandler(Connection* conn, Server& srv, Dispatcher& disp, HttpServer& http_server)
+				: _conn(conn), _server(srv), _dispatcher(disp), _http_server(http_server), _half_closed(false), _last_active(time(NULL)) {}
 
 		ConnectionHandler::~ConnectionHandler() {}
 
@@ -202,15 +206,21 @@ namespace http {
 				return false;
 			if (n == 0)
 				return true;
-			_conn->consume_read(_conn->read_buffer().size());
-			 std::string response =
-				"HTTP/1.1 200 OK\r\n"
-				"Content-Length: 14\r\n"
-				"Content-Type: text/plain\r\n"
-				"Connection: keep-alive\r\n"
-				"\r\n"
-				"Hello, World!\n";
-			_conn->append_write(response);
+			std::pair<types::HttpStatus, Request> status_req = Request::parse_message(*_conn);
+			const Request& req = status_req.second;
+			std::string host_header;
+			std::map<std::string, std::vector<std::string> >::const_iterator host_it = req.headers.header_map.find("host");
+			if (host_it != req.headers.header_map.end() && !host_it->second.empty())
+				host_header = host_it->second.front();
+			size_t colon_pos = host_header.find(':');
+			if (colon_pos != std::string::npos)
+				host_header.erase(colon_pos);
+			const http::core::VirtualHost* vhost = _http_server.find_vhost(_conn->get_local_port(), host_header);
+			if (!vhost)
+				return false;
+			const types::__location& location = HttpTransaction::get_best_location(*vhost, req.start_line.uri);
+			Response::_http_response response = Response::make_response(status_req, location);
+			_conn->append_write(Response::serialize(response));
 			#if defined(__linux__)
 				_dispatcher.modify_handler(this, EPOLLOUT | EPOLLRDHUP);
 			#elif defined(__APPLE__) || defined(__FreeBSD__)

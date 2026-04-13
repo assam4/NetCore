@@ -1,5 +1,5 @@
-#ifndef HTTP_TYPES
-# define HTTP_TYPES
+#ifndef HTTP_TYPES_HPP
+# define HTTP_TYPES_HPP
 
 # include <stdint.h>
 # include <map>
@@ -111,13 +111,14 @@ namespace http {
 			 */
 			class StatusRegistry {
 				private:
-					static const std::map<types::HttpStatus, std::string> _phrases;
+					static const std::map<HttpStatus, std::string> _phrases;
 
 					StatusRegistry();
 					StatusRegistry(const StatusRegistry&);
 					StatusRegistry& operator=(const StatusRegistry&);
+					static std::map<HttpStatus, std::string> init();
 				public:
-					static std::string get_phrase(types::HttpStatus status);
+					static const std::string& get_phrase(types::HttpStatus status);
 			};
 
 			/**
@@ -128,16 +129,25 @@ namespace http {
 			 */
 			class MimeTypes {
 				private:
-					static std::map<std::string, std::string> _types;
+					static const std::map<std::string, std::string> _types;
 
 					MimeTypes();
 					MimeTypes(const MimeTypes&);
 					MimeTypes& operator=(const MimeTypes&);
-
-					static bool parse_mime_line(const std::string &line);
+					static std::map<std::string, std::string> init();
 				public:
-					static void setup_mime_types();
-					static std::string get_mime_type(const std::string& type);
+
+					static const std::string& get_mime_type(const std::string& type);
+			};
+
+			
+			class DefaultErrorPages {
+				private:
+					DefaultErrorPages();
+					DefaultErrorPages(const DefaultErrorPages&);
+					DefaultErrorPages& operator=(const DefaultErrorPages&);
+				public:
+					static std::string get_default_content(uint16_t status);
 			};
 		}
 	}

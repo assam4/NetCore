@@ -8,6 +8,8 @@
 namespace http {
 	namespace core {
 
+		class HttpServer;
+
 		/**
 		 * @class AEventHandler
 		 * @brief Base interface for all reactor event handlers.
@@ -67,11 +69,12 @@ namespace http {
 				int _fd;
 				Server& _server;
 				Dispatcher& _dispatcher;
+				HttpServer& _http_server;
 
 				AcceptHandler(const AcceptHandler&);
 				AcceptHandler& operator=(const AcceptHandler&);
 			public:
-				AcceptHandler(int fd, Server& srv, Dispatcher& Dispatcher);
+				AcceptHandler(int fd, Server& srv, Dispatcher& Dispatcher, HttpServer& http_server);
 				~AcceptHandler();
 
 				int  get_fd() const;
@@ -89,6 +92,7 @@ namespace http {
 				Connection* _conn;
 				Server& _server;
 				Dispatcher& _dispatcher;
+				HttpServer& _http_server;
 				bool _half_closed;
 				time_t _last_active;
 
@@ -99,7 +103,7 @@ namespace http {
 				bool handle_write();
 				void clean_up();
 			public:
-				ConnectionHandler(Connection* conn, Server& server, Dispatcher& dispatcher);
+				ConnectionHandler(Connection* conn, Server& server, Dispatcher& dispatcher, HttpServer& http_server);
 				~ConnectionHandler();
 
 				int get_fd() const;

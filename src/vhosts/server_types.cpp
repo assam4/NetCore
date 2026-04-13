@@ -5,6 +5,7 @@
 #include "utils.hpp"
 #include <cstdlib>
 #include <exception>
+#include <algorithm>
 #include <cctype>
 #include <cstring>
 
@@ -69,7 +70,8 @@ namespace   http {
                 else {
                     std::set<std::string>::iterator it;
                     for (it = data.begin(); it != data.end(); ++it) {
-                        std::string name = to_lowercase(*it);
+                        std::string name = *it;
+                        std::transform(name.begin(), name.end(), name.begin(), static_cast<int(*)(int)>(std::tolower));
                         server_name.push_back(name);
                     }
                 }

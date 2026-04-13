@@ -264,15 +264,15 @@ int main(int argc, char* argv[]) {
 	port_closed(9999) ? ok("Port 9999 correctly not bound")
 					  : fail("Port 9999 is open — unexpected");
 
-	// ── 4. match_vhost ────────────────────────────────────────────────────────
+	// ── 4. find_vhost ────────────────────────────────────────────────────────
 	section("VirtualHost matching");
 
 	// exact server_name match
 	{
-		const http::core::VirtualHost* v = server.match_vhost(8080, "example.com");
+		const http::core::VirtualHost* v = server.find_vhost(8080, "example.com");
 		v != NULL
-			? ok("match_vhost(8080, example.com) found a vhost")
-			: fail("match_vhost(8080, example.com) returned NULL");
+			? ok("find_vhost(8080, example.com) found a vhost")
+			: fail("find_vhost(8080, example.com) returned NULL");
 		if (v)
 			v->get_root() == "/var/www/html"
 				? ok("Matched correct vhost (root=/var/www/html)")
@@ -281,17 +281,17 @@ int main(int argc, char* argv[]) {
 
 	// www subdomain
 	{
-		const http::core::VirtualHost* v = server.match_vhost(8080, "www.example.com");
-		v != NULL ? ok("match_vhost(8080, www.example.com) found vhost")
-				  : fail("match_vhost(8080, www.example.com) returned NULL");
+		const http::core::VirtualHost* v = server.find_vhost(8080, "www.example.com");
+		v != NULL ? ok("find_vhost(8080, www.example.com) found vhost")
+				  : fail("find_vhost(8080, www.example.com) returned NULL");
 	}
 
 	// server2 domain on its port
 	{
-		const http::core::VirtualHost* v = server.match_vhost(8081, "api.example.com");
+		const http::core::VirtualHost* v = server.find_vhost(8081, "api.example.com");
 		v != NULL
-			? ok("match_vhost(8081, api.example.com) found vhost")
-			: fail("match_vhost(8081, api.example.com) returned NULL");
+			? ok("find_vhost(8081, api.example.com) found vhost")
+			: fail("find_vhost(8081, api.example.com) returned NULL");
 		if (v)
 			v->get_root() == "/var/www/api"
 				? ok("Matched server2 correctly")
@@ -300,16 +300,16 @@ int main(int argc, char* argv[]) {
 
 	// unknown host → default_server fallback
 	{
-		const http::core::VirtualHost* v = server.match_vhost(8080, "unknown.com");
-		v != NULL ? ok("match_vhost fallback to default_server works")
-				  : fail("match_vhost returned NULL for unknown host");
+		const http::core::VirtualHost* v = server.find_vhost(8080, "unknown.com");
+		v != NULL ? ok("find_vhost fallback to default_server works")
+				  : fail("find_vhost returned NULL for unknown host");
 	}
 
 	// wrong port → NULL
 	{
-		const http::core::VirtualHost* v = server.match_vhost(9999, "example.com");
-		v == NULL ? ok("match_vhost(9999, ...) correctly returns NULL")
-				  : fail("match_vhost returned vhost for unbound port 9999");
+		const http::core::VirtualHost* v = server.find_vhost(9999, "example.com");
+		v == NULL ? ok("find_vhost(9999, ...) correctly returns NULL")
+				  : fail("find_vhost returned vhost for unbound port 9999");
 	}
 
 	// ── 5. Summary ────────────────────────────────────────────────────────────

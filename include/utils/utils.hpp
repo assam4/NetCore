@@ -8,18 +8,6 @@ namespace http {
 	namespace core {
 
 		/**
-		 * @brief Returns a lowercase copy of the input string.
-		 * @param input The string to convert.
-		 * @return A new std::string with all characters in lowercase.
-		 */
-		inline std::string to_lowercase(const std::string& input) {
-			std::string result(input);
-			for (std::string::size_type i = 0; i < result.length(); ++i)
-				result[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(result[i])));
-			return result;
-		}
-
-		/**
 		 * @struct is_numeric
 		 * @brief Compile-time trait marking arithmetic types.
 		 * @details Defaults to false and is specialized for numeric primitives.

@@ -28,7 +28,7 @@ namespace http {
 				~HttpServer();
 
 				void init(const std::vector<http::config::parser::__server_row_data>& row_config);
-				const VirtualHost* match_vhost(uint16_t port, const std::string& host_head);
+				const VirtualHost* find_vhost(uint16_t port, const std::string& host_head);
 				void run();
 				void stop();
 		};

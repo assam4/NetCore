@@ -7,153 +7,158 @@ namespace http {
 	namespace core {
 		namespace types {
 
-			StatusRegistry::StatusRegistry() {
-				const std::map<types::HttpStatus, std::string> _phrases = {
-					// 1xx - Informational
-					{types::CONTINUE, "Continue"},
-					{types::SWITCHING_PROTOCOLS, "Switching Protocols"},
-					{types::PROCESSING, "Processing"},
-					{types::EARLY_HINTS, "Early Hints"},
-					// 2xx - Success
-					{types::OK, "OK"},
-					{types::CREATED, "Created"},
-					{types::ACCEPTED, "Accepted"},
-					{types::NON_AUTHORITATIVE_INFORMATION, "Non-Authoritative Information"},
-					{types::NO_CONTENT, "No Content"},
-					{types::RESET_CONTENT, "Reset Content"},
-					{types::PARTIAL_CONTENT, "Partial Content"},
-					{types::MULTI_STATUS, "Multi-Status"},
-					{types::ALREADY_REPORTED, "Already Reported"},
-					{types::IM_USED, "IM Used"},
-					// 3xx - Redirection
-					{types::MULTIPLE_CHOICES, "Multiple Choices"},
-					{types::MOVED_PERMANENTLY, "Moved Permanently"},
-					{types::FOUND, "Found"},
-					{types::SEE_OTHER, "See Other"},
-					{types::NOT_MODIFIED, "Not Modified"},
-					{types::USE_PROXY, "Use Proxy"},
-					{types::UNUSED, "Unused"},
-					{types::TEMPORARY_REDIRECT, "Temporary Redirect"},
-					{types::PERMANENT_REDIRECT, "Permanent Redirect"},
-					// 4xx - Client Errors
-					{types::BAD_REQUEST, "Bad Request"},
-					{types::UNAUTHORIZED, "Unauthorized"},
-					{types::PAYMENT_REQUIRED, "Payment Required"},
-					{types::FORBIDDEN, "Forbidden"},
-					{types::NOT_FOUND, "Not Found"},
-					{types::METHOD_NOT_ALLOWED, "Method Not Allowed"},
-					{types::NOT_ACCEPTABLE, "Not Acceptable"},
-					{types::PROXY_AUTHENTICATION_REQUIRED, "Proxy Authentication Required"},
-					{types::REQUEST_TIMEOUT, "Request Timeout"},
-					{types::CONFLICT, "Conflict"},
-					{types::GONE, "Gone"},
-					{types::LENGTH_REQUIRED, "Length Required"},
-					{types::PRECONDITION_FAILED, "Precondition Failed"},
-					{types::CONTENT_TOO_LARGE, "Content Too Large"},
-					{types::URI_TOO_LONG, "URI Too Long"},
-					{types::UNSUPPORTED_MEDIA_TYPE, "Unsupported Media Type"},
-					{types::RANGE_NOT_SATISFIABLE, "Range Not Satisfiable"},
-					{types::EXPECTATION_FAILED, "Expectation Failed"},
-					{types::I_AM_NOT_TEAPOT, "I'm a teapot"},
-					{types::MISDIRECTED_REQUEST, "Misdirected Request"},
-					{types::UNPROCESSABLE_CONTENT, "Unprocessable Content"},
-					{types::LOCKED, "Locked"},
-					{types::FAILED_DEPENDENCY, "Failed Dependency"},
-					{types::TOO_EARLY, "Too Early"},
-					{types::UPGRADE_REQUIRED, "Upgrade Required"},
-					{types::PRECONDITION_REQUIRED, "Precondition Required"},
-					{types::TOO_MANY_REQUESTS, "Too Many Requests"},
-					{types::REQUEST_HEADER_FIELDS_TOO_LARGE, "Request Header Fields Too Large"},
-					{types::UNAVAILABLE_FOR_LEGAL_REASONS, "Unavailable For Legal Reasons"},
-					// 5xx - Server Errors
-					{types::INTERNAL_SERVER_ERROR, "Internal Server Error"},
-					{types::NOT_IMPLEMENTED, "Not Implemented"},
-					{types::BAD_GATEWAY, "Bad Gateway"},
-					{types::SERVICE_UNAVAILABLE, "Service Unavailable"},
-					{types::GATEWAY_TIMEOUT, "Gateway Timeout"},
-					{types::HTTP_VERSION_NOT_SUPPORTED, "HTTP Version Not Supported"},
-					{types::VARIANT_ALSO_NEGOTIATES, "Variant Also Negotiates"},
-					{types::INSUFFICIENT_STORAGE, "Insufficient Storage"},
-					{types::LOOP_DETECTED, "Loop Detected"},
-					{types::NOT_EXTENDED, "Not Extended"},
-					{types::NETWORK_AUTHENTICATION_REQUIRED, "Network Authentication Required"}
-				};
+			const std::map<types::HttpStatus, std::string> StatusRegistry::_phrases = StatusRegistry::init();
+			const std::map<std::string, std::string> MimeTypes::_types = MimeTypes::init();
+
+			std::map<types::HttpStatus, std::string> StatusRegistry::init() {
+				std::map<types::HttpStatus, std::string> m;
+				m[types::CONTINUE] = "Continue";
+				m[types::SWITCHING_PROTOCOLS] = "Switching Protocols";
+				m[types::PROCESSING] = "Processing";
+				m[types::EARLY_HINTS] = "Early Hints";
+				m[types::OK] = "OK";
+				m[types::CREATED] = "Created";
+				m[types::ACCEPTED] = "Accepted";
+				m[types::NON_AUTHORITATIVE_INFORMATION] = "Non-Authoritative Information";
+				m[types::NO_CONTENT] = "No Content";
+				m[types::RESET_CONTENT] = "Reset Content";
+				m[types::PARTIAL_CONTENT] = "Partial Content";
+				m[types::MULTI_STATUS] = "Multi-Status";
+				m[types::ALREADY_REPORTED] = "Already Reported";
+				m[types::IM_USED] = "IM Used";
+				m[types::MULTIPLE_CHOICES] = "Multiple Choices";
+				m[types::MOVED_PERMANENTLY] = "Moved Permanently";
+				m[types::FOUND] = "Found";
+				m[types::SEE_OTHER] = "See Other";
+				m[types::NOT_MODIFIED] = "Not Modified";
+				m[types::USE_PROXY] = "Use Proxy";
+				m[types::UNUSED] = "Unused";
+				m[types::TEMPORARY_REDIRECT] = "Temporary Redirect";
+				m[types::PERMANENT_REDIRECT] = "Permanent Redirect";
+				m[types::BAD_REQUEST] = "Bad Request";
+				m[types::UNAUTHORIZED] = "Unauthorized";
+				m[types::PAYMENT_REQUIRED] = "Payment Required";
+				m[types::FORBIDDEN] = "Forbidden";
+				m[types::NOT_FOUND] = "Not Found";
+				m[types::METHOD_NOT_ALLOWED] = "Method Not Allowed";
+				m[types::NOT_ACCEPTABLE] = "Not Acceptable";
+				m[types::PROXY_AUTHENTICATION_REQUIRED] = "Proxy Authentication Required";
+				m[types::REQUEST_TIMEOUT] = "Request Timeout";
+				m[types::CONFLICT] = "Conflict";
+				m[types::GONE] = "Gone";
+				m[types::LENGTH_REQUIRED] = "Length Required";
+				m[types::PRECONDITION_FAILED] = "Precondition Failed";
+				m[types::CONTENT_TOO_LARGE] = "Content Too Large";
+				m[types::URI_TOO_LONG] = "URI Too Long";
+				m[types::UNSUPPORTED_MEDIA_TYPE] = "Unsupported Media Type";
+				m[types::RANGE_NOT_SATISFIABLE] = "Range Not Satisfiable";
+				m[types::EXPECTATION_FAILED] = "Expectation Failed";
+				m[types::I_AM_NOT_TEAPOT] = "I'm a teapot";
+				m[types::MISDIRECTED_REQUEST] = "Misdirected Request";
+				m[types::UNPROCESSABLE_CONTENT] = "Unprocessable Content";
+				m[types::LOCKED] = "Locked";
+				m[types::FAILED_DEPENDENCY] = "Failed Dependency";
+				m[types::TOO_EARLY] = "Too Early";
+				m[types::UPGRADE_REQUIRED] = "Upgrade Required";
+				m[types::PRECONDITION_REQUIRED] = "Precondition Required";
+				m[types::TOO_MANY_REQUESTS] = "Too Many Requests";
+				m[types::REQUEST_HEADER_FIELDS_TOO_LARGE] = "Request Header Fields Too Large";
+				m[types::UNAVAILABLE_FOR_LEGAL_REASONS] = "Unavailable For Legal Reasons";
+				m[types::INTERNAL_SERVER_ERROR] = "Internal Server Error";
+				m[types::NOT_IMPLEMENTED] = "Not Implemented";
+				m[types::BAD_GATEWAY] = "Bad Gateway";
+				m[types::SERVICE_UNAVAILABLE] = "Service Unavailable";
+				m[types::GATEWAY_TIMEOUT] = "Gateway Timeout";
+				m[types::HTTP_VERSION_NOT_SUPPORTED] = "HTTP Version Not Supported";
+				m[types::VARIANT_ALSO_NEGOTIATES] = "Variant Also Negotiates";
+				m[types::INSUFFICIENT_STORAGE] = "Insufficient Storage";
+				m[types::LOOP_DETECTED] = "Loop Detected";
+				m[types::NOT_EXTENDED] = "Not Extended";
+				m[types::NETWORK_AUTHENTICATION_REQUIRED] = "Network Authentication Required";
+				return m;
 			}
 
-			std::string StatusRegistry::get_phrase(types::HttpStatus status) {
+			const std::string& StatusRegistry::get_phrase(types::HttpStatus status)
+			{
+				static const std::string unknown = "Unknown";
 				std::map<types::HttpStatus, std::string>::const_iterator it = _phrases.find(status);
 				if (it != _phrases.end())
 					return it->second;
-				return "Unknown";
+				return unknown;
 			}
 
-			bool MimeTypes::parse_mime_line(const std::string& line) {
-				std::istringstream iss(line);
-				std::string mime_type;
-				iss >> mime_type;
-				if (mime_type.empty())
-					return false;
-				std::string ext;
-				bool added = false;
-				while (iss >> ext) {
-					if (!ext.empty() && ext.back() == ';')
-						ext.pop_back();
-					_types[ext] = mime_type;
-					added = true;
-				}
-				return added;
+			std::map<std::string, std::string> MimeTypes::init() {
+				std::map<std::string, std::string> m;
+				m[".html"] = "text/html";
+				m[".htm"]  = "text/html";
+				m[".css"]  = "text/css";
+				m[".csv"]  = "text/csv";
+				m[".txt"]  = "text/plain";
+				m[".xml"]  = "application/xml";
+				m[".js"]   = "application/javascript";
+				m[".json"] = "application/json";
+				m[".pdf"]  = "application/pdf";
+				m[".zip"]  = "application/zip";
+				m[".gz"]   = "application/gzip";
+				m[".tar"]  = "application/x-tar";
+				m[".rar"]  = "application/vnd.rar";
+				m[".7z"]   = "application/x-7z-compressed";
+				m[".exe"]  = "application/octet-stream";
+				m[".bin"]  = "application/octet-stream";
+				m[".png"]  = "image/png";
+				m[".jpg"]  = "image/jpeg";
+				m[".jpeg"] = "image/jpeg";
+				m[".gif"]  = "image/gif";
+				m[".bmp"]  = "image/bmp";
+				m[".webp"] = "image/webp";
+				m[".svg"]  = "image/svg+xml";
+				m[".ico"]  = "image/x-icon";
+				m[".tif"]  = "image/tiff";
+				m[".tiff"] = "image/tiff";
+				m[".mp3"]  = "audio/mpeg";
+				m[".wav"]  = "audio/wav";
+				m[".ogg"]  = "audio/ogg";
+				m[".aac"]  = "audio/aac";
+				m[".flac"] = "audio/flac";
+				m[".mp4"]  = "video/mp4";
+				m[".avi"]  = "video/x-msvideo";
+				m[".mov"]  = "video/quicktime";
+				m[".mkv"]  = "video/x-matroska";
+				m[".webm"] = "video/webm";
+				m[".wmv"]  = "video/x-ms-wmv";
+				m[".flv"]  = "video/x-flv";
+				m[".woff"]  = "font/woff";
+				m[".woff2"] = "font/woff2";
+				m[".ttf"]   = "font/ttf";
+				m[".otf"]   = "font/otf";
+				m[".eot"]   = "application/vnd.ms-fontobject";
+				m[".apk"]  = "application/vnd.android.package-archive";
+				m[".iso"]  = "application/x-iso9660-image";
+				m[".doc"]  = "application/msword";
+				m[".docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+				m[".xls"]  = "application/vnd.ms-excel";
+				m[".xlsx"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+				m[".ppt"]  = "application/vnd.ms-powerpoint";
+				m[".pptx"] = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+				return m;
 			}
 
-			void MimeTypes::setup_mime_types() {
-				const std::string path = "../../config/mime.types";
-				std::ifstream file(path.c_str());
-				if (!file.is_open()) {
-					std::cerr << "You must have mime.types file inside config\n";
-					return;
-				}
-				std::string line;
-				bool types_block_started = false;
-				bool types_block_closed = false;
-				while (std::getline(file, line)) {
-					line.erase(0, line.find_first_not_of(" \t"));
-					line.erase(line.find_last_not_of(" \t\r\n") + 1);
-					if (line.empty() || line[0] == '#')
-						continue;
-					if (!types_block_started) {
-					if (line == "types {" || line == "types{") {
-							types_block_started = true;
-							continue;
-						} else {
-							std::cerr << "Invalid mime.types format: missing types block\n";
-							return;
-						}
-					}
-					if (line == "}") {
-						if (_types.empty()) {
-							std::cerr << "Invalid mime.types format: types block is empty\n";
-							return;
-						}
-						types_block_closed = true;
-						break;
-					}
-					if (line.find("types") != std::string::npos) {
-						std::cerr << "Invalid mime.types format: nested types block detected\n";
-						return;
-					}
-					if (!parse_mime_line(line)) {
-						std::cerr << "Invalid mime.types line (no extensions): " << line << "\n";
-						return;
-					}
-				}
-				if (!types_block_started || !types_block_closed)
-					std::cerr << "Invalid mime.types format: types block not properly closed\n";
-			}
-
-			std::string MimeTypes::get_mime_type(const std::string& ext) {
+			const std::string& MimeTypes::get_mime_type(const std::string& ext) {
+				static const std::string default_type = "application/octet-stream";
 				std::map<std::string, std::string>::const_iterator it = _types.find(ext);
 				if (it != _types.end())
 					return it->second;
-				return "application/octet-stream";
+				return default_type;
+			}
+
+			std::string DefaultErrorPages::get_default_content(uint16_t status) {
+				std::ostringstream oss;
+				const std::string& msg = StatusRegistry::get_phrase(static_cast<HttpStatus>(status));
+				oss << "<html>\r\n"
+					<< "<head><title>" << status << " " << msg << "</title></head>\r\n"
+					<< "<body>\r\n"
+					<< "<center><h1>" << status << " " << msg << "</h1></center>\r\n";
+				return oss.str();
 			}
 
 		}

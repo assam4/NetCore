@@ -1,8 +1,10 @@
 #include <sstream>
 #include <stdexcept>
 #include <cstring>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include "virtualhost.hpp"
+#include "utils.hpp"
 
 namespace http {
     namespace core {
@@ -153,5 +155,20 @@ namespace http {
             }
             return result;
         }
+
+        std::string sockaddr_to_string(sockaddr_storage& ss) {
+            char ip[INET6_ADDRSTRLEN];
+            if (ss.ss_family == AF_INET) {
+                sockaddr_in* addr = reinterpret_cast<sockaddr_in*>(&ss);
+                inet_ntop(AF_INET, &addr->sin_addr, ip, sizeof(ip));
+                return std::string(ip) + ":" + to_string(ntohs(addr->sin_port));
+            } else if (ss.ss_family == AF_INET6) {
+                sockaddr_in6* addr = reinterpret_cast<sockaddr_in6*>(&ss);
+                inet_ntop(AF_INET6, &addr->sin6_addr, ip, sizeof(ip));
+                return std::string(ip) + ":" + to_string(ntohs(addr->sin6_port));
+            }
+            return "unknown";
+        }
+
     }
 }
