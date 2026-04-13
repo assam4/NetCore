@@ -3,10 +3,10 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include "server/HttpServer.hpp"
-#include "parser/configparser.hpp"
-#include "lexer/tokenize_factory.hpp"
-#include "signal/SignalHandler.hpp"
+#include "HttpServer.hpp"
+#include "configparser.hpp"
+#include "tokenize_factory.hpp"
+#include "SignalHandler.hpp"
 
 int main(int argc, char* argv[]) {
 	http::core::SignalHandler::setup();
