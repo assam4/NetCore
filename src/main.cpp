@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-
+#include <cstdlib>
 #include "HttpServer.hpp"
 #include "SignalHandler.hpp"
 #include "configparser.hpp"
@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
         std::vector<http::config::lexer::IToken *> tokens = get_tokens(tokenizer, config_content);
         std::vector<http::config::parser::__server_row_data> raw_config = get_parsed_data(tokens);
         run_server(raw_config);
-        return EXIT_SUCCESS;	
+        return EXIT_SUCCESS;
 	}
 	catch (const std::exception &e) {
 		std::cerr << e.what() << "\n";

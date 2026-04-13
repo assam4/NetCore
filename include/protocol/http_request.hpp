@@ -157,7 +157,6 @@ namespace http {
 				__body          body;
 				static  std::pair<types::HttpStatus, Request> parse_message(Connection&);
 			private:
-				Request();
 				void    parse_start_line(const std::string&);
 				std::map<std::string, std::vector<std::string> >::const_iterator    check_mandatory_headers() const;
 		};

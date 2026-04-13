@@ -14,7 +14,7 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: Install build tools
-      run: sudo apt-get update && sudo apt-get install -y build-essential
+      run: sudo apt-get update && sudo apt-get install -y build-essential python3 php-cli php-cgi
 
     - name: Build vhosts tests
       run: |
@@ -44,6 +44,13 @@ jobs:
         make >> ../../ci_output.txt 2>&1
         ls -l >> ../../ci_output.txt
 
+    - name: Build CGI tests
+      run: |
+        cd test/cgi
+        ls -l >> ../../ci_output.txt
+        make >> ../../ci_output.txt 2>&1
+        ls -l >> ../../ci_output.txt
+
     - name: Run vhosts tests
       run: cd test/vhosts && ./test >> ../../ci_output.txt 2>&1
 
@@ -55,6 +62,9 @@ jobs:
 
     - name: Run protocol tests
       run: cd test/protocol && ./test_protocol >> ../../ci_output.txt 2>&1
+
+    - name: Run CGI tests
+      run: cd test/cgi && ./test >> ../../ci_output.txt 2>&1
 
     - name: Upload CI output
       uses: actions/upload-artifact@v4
