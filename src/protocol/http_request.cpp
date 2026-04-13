@@ -8,7 +8,6 @@
 namespace http {
 	namespace core {
 
-		Request::Request() {}
 		static const size_t MaxAttempts = 10000;
 
 		static void read_with_attempts(Connection& c, types::HttpStatus on_timeout) {
