@@ -74,14 +74,21 @@ namespace http {
 			int	status = 0;
 			#if defined(__linux__)
 				status = ::epoll_ctl(_epfd, EPOLL_CTL_DEL, h->get_fd(), NULL);
-				if (status < 0)
-					throw NetException("Server error: Event remove failed.\n");
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
-				struct kevent	kev[2];
-				EV_SET(&kev[0], h->get_fd(), EVFILT_READ, EV_DELETE, 0, 0, NULL);
-				EV_SET(&kev[1], h->get_fd(), EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
-				status = kevent(_epfd, kev, 2, NULL, 0, NULL);
+				struct kevent	kev;
+				bool	remove_failed = false;
+				EV_SET(&kev, h->get_fd(), EVFILT_READ, EV_DELETE, 0, 0, NULL);
+				status = kevent(_epfd, &kev, 1, NULL, 0, NULL);
+				if (status < 0 && errno != ENOENT)
+					remove_failed = true;
+				EV_SET(&kev, h->get_fd(), EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
+				status = kevent(_epfd, &kev, 1, NULL, 0, NULL);
+				if (status < 0 && errno != ENOENT)
+					remove_failed = true;
+				status = remove_failed ? -1 : 0;
 			#endif
+			if (status < 0)
+				throw NetException("Server error: Event remove failed.\n");
 			_handlers.erase(h->get_fd());
 		}
 
@@ -176,10 +183,6 @@ namespace http {
 				if (!(events & EPOLLIN))
 					return ;
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
-				if (static_cast<int>(events) & (EV_ERROR | EV_EOF)) {
-					std::cerr << "[AcceptHandler] error on listener " << _fd << "\n";
-					return;
-				}
 				if (static_cast<int>(events) != EVFILT_READ)
 					return;
 			#endif
@@ -272,10 +275,6 @@ ConnectionHandler::ConnectionHandler(Connection* conn, Server& srv, Dispatcher& 
 				if (!should_close && events & EPOLLOUT)
 					should_close = (handle_write() == false);
 			#elif defined(__APPLE__) || defined(__FreeBSD__)
-				if (events & (EV_ERROR | EV_EOF)) {
-					clean_up();
-					return;
-				}
 				bool should_close = false;
 				if ((int)events == EVFILT_READ)
 					should_close = (handle_read() == false);
