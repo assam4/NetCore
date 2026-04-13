@@ -223,6 +223,13 @@ ConnectionHandler::ConnectionHandler(Connection* conn, Server& srv, Dispatcher& 
 				return false;
 			const types::__location& location = HttpTransaction::get_best_location(*vhost, req.start_line.uri);
 			Response::_http_response response = Response::make_response(status_req, location);
+			bool created_session = false;
+			std::string sid = _http_server.sessions().ensure_session(req.headers.cookies, created_session);
+			if (created_session) {
+				Cookie session_cookie;
+				session_cookie.set_session(sid, SESSION_MAX_AGE);
+				response._cookies.push_back(session_cookie);
+			}
 			_conn->append_write(Response::serialize(response));
 			#if defined(__linux__)
 				_dispatcher.modify_handler(this, EPOLLOUT | EPOLLRDHUP);

@@ -23,6 +23,8 @@ SRCS =  src/main.cpp \
 		src/vhosts/server_types.cpp \
 		src/signal/SignalHandler.cpp \
 		src/protocol/http_request.cpp \
+		src/protocol/http_cookie.cpp \
+		src/protocol/session_store.cpp \
 		src/protocol/http_response.cpp \
 		src/protocol/http_types.cpp \
 		src/protocol/http_transaction.cpp

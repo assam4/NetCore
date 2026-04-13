@@ -8,6 +8,9 @@ all: $(TARGET)
 
 $(TARGET): $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ \
+	  ../../src/protocol/http_cookie.cpp \
+	  ../../src/protocol/http_response.cpp \
+	  ../../src/protocol/http_types.cpp \
 	  ../../src/protocol/http_request.cpp \
 	  ../../src/server/Server.cpp \
 	  ../../src/server/Socket.cpp

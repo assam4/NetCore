@@ -3,8 +3,10 @@
 
 # include <map>
 # include <string>
+# include <vector>
 # include <stdint.h>
 # include "http_types.hpp"
+# include "http_cookie.hpp"
 # include "http_request.hpp"
 # include "server_types.hpp"
 
@@ -29,11 +31,12 @@ namespace http {
 				std::string _version;
 				types::HttpStatus _status;
 				std::map<std::string, std::string> _headers;
+				std::vector<Cookie> _cookies;
 				std::string _body;
 			};
 
-			static _http_response make_response( const std::pair<types::HttpStatus, Request>& status_req, const types::__location& location);
-			static std::string serialize(const _http_response& response);
+			static _http_response make_response( const std::pair<types::HttpStatus, Request>&, const types::__location&);
+			static std::string serialize(const _http_response&);
 		private:
 			Response();
 			Response(const Response&);
@@ -64,6 +67,7 @@ namespace http {
 
 			static std::string compute_strong_etag(const std::string& path);
 			static std::string compute_weak_etag(const std::string& path);
+			
 		};
 
 	}

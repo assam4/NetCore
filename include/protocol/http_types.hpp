@@ -140,7 +140,12 @@ namespace http {
 					static const std::string& get_mime_type(const std::string& type);
 			};
 
-			
+			/**
+			 * @class DefaultErrorPages
+			 * @brief Built-in fallback HTML bodies for common HTTP errors.
+			 * @details Returns a default response page when a configured error page is missing.
+			 *          Keeps error responses stable even without custom filesystem templates.
+			 */
 			class DefaultErrorPages {
 				private:
 					DefaultErrorPages();

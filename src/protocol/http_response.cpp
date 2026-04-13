@@ -458,6 +458,8 @@ namespace http {
 				<< "\r\n";
 			for (std::map<std::string, std::string>::const_iterator it = response._headers.begin(); it != response._headers.end(); ++it)
 				out << it->first << ": " << it->second << "\r\n";
+			for (std::vector<Cookie>::const_iterator it = response._cookies.begin(); it != response._cookies.end(); ++it)
+				out << "Set-Cookie: " << it->serialize_set_cookie() << "\r\n";
 			out << "\r\n";
 			if (!response._body.empty())
 				out << response._body;

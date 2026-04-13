@@ -79,6 +79,10 @@ namespace http {
 			return default_vhost;
 		}
 
+		Sessions& HttpServer::sessions() {
+			return _sessions;
+		}
+
 		void HttpServer::run() {
 			_dispatcher.run();
 		}

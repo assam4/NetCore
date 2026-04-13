@@ -114,6 +114,40 @@ namespace http {
 			return result;
 		}
 
+		static bool	is_cookie_token_char(char c) {
+			if (std::isalnum(static_cast<unsigned char>(c)))
+				return true;
+			const std::string allowed = "!#$%&'*+-.^_`|~";
+			return allowed.find(c) != std::string::npos;
+		}
+
+		void	__header_map::parse_cookie_line(const std::string& line) {
+			size_t start = 0;
+			while (start < line.length()) {
+				size_t end = line.find(';', start);
+				if (end == std::string::npos)
+					end = line.length();
+				std::string part = trim(line.substr(start, end - start));
+				if (!part.empty()) {
+					size_t eq = part.find('=');
+					if (eq == std::string::npos || eq == 0)
+						throw types::BAD_REQUEST;
+					std::string name = trim(part.substr(0, eq));
+					std::string value = trim(part.substr(eq + 1));
+					if (name.empty())
+						throw types::BAD_REQUEST;
+					for (size_t j = 0; j < name.length(); ++j) {
+						if (!is_cookie_token_char(name[j]))
+							throw types::BAD_REQUEST;
+					}
+					cookies[name] = value;
+				}
+				if (end == line.length())
+					break;
+				start = end + 1;
+			}
+		}
+
 		void	__header_map::parse_header(const std::string& line, size_t& len) {
 			size_t single_len = line.length();
 			len += single_len;
@@ -127,6 +161,9 @@ namespace http {
 			std::vector<std::string> values = parse_values(line.substr(header_divider + 1));
 			if (uniques.find(key) != uniques.end() && (header_map.find(key) != header_map.end() || values.size() > 1))
 					throw types::BAD_REQUEST;
+			if (key == "cookie")
+				for (size_t i = 0; i < values.size(); ++i)
+					parse_cookie_line(values[i]);
 			std::vector<std::string>& headerValues = header_map[key];
 			headerValues.insert(headerValues.end(), values.begin(), values.end());
 			std::sort(headerValues.begin(), headerValues.end());

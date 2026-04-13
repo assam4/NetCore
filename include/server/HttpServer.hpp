@@ -4,6 +4,7 @@
 #include "Reactor.hpp"
 #include "configparser.hpp"
 #include "virtualhost.hpp"
+#include "session_store.hpp"
 #include <vector>
 
 namespace http {
@@ -18,6 +19,7 @@ namespace http {
 		class HttpServer {
 			private:
 				std::vector<VirtualHost> _virtual_hosts;
+				Sessions _sessions;
 				Dispatcher _dispatcher;
 				Server _server;
 
@@ -29,6 +31,7 @@ namespace http {
 
 				void init(const std::vector<http::config::parser::__server_row_data>& row_config);
 				const VirtualHost* find_vhost(uint16_t port, const std::string& host_head);
+				Sessions& sessions();
 				void run();
 				void stop();
 		};

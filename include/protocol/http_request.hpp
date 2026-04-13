@@ -118,10 +118,12 @@ namespace http {
 		struct __header_map {
 				const static std::set<std::string> uniques;
 				std::map<std::string, std::vector<std::string> > header_map;
+				std::map<std::string, std::string> cookies;
 
 				static std::set<std::string> make_unique_headers_list();
 				void    parse_header(const std::string&, size_t&);
 			private:
+				void	parse_cookie_line(const std::string&);
 				std::vector<std::string> parse_values(const std::string&) const;
 		};
 

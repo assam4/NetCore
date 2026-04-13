@@ -1,4 +1,5 @@
 #include "http_request.hpp"
+#include "http_response.hpp"
 #include "Server.hpp"
 #include <iostream>
 #include <stdexcept>
@@ -54,6 +55,31 @@ static bool expect_true(const std::string& label, bool condition) {
         return false;
     }
     std::cout << "[OK]   " << label << " = true\n";
+    return true;
+}
+
+static bool expect_contains(const std::string& label, const std::string& text, const std::string& needle) {
+    if (text.find(needle) == std::string::npos) {
+        std::cout << "[FAIL] " << label << " missing='" << needle << "'\n";
+        return false;
+    }
+    std::cout << "[OK]   " << label << " contains='" << needle << "'\n";
+    return true;
+}
+
+static bool expect_cookie(const std::string& label, const Request& req,
+                          const std::string& key, const std::string& expected) {
+    std::map<std::string, std::string>::const_iterator it = req.headers.cookies.find(key);
+    if (it == req.headers.cookies.end()) {
+        std::cout << "[FAIL] " << label << " missing cookie='" << key << "'\n";
+        return false;
+    }
+    if (it->second != expected) {
+        std::cout << "[FAIL] " << label << " cookie='" << key
+                  << "' expected='" << expected << "' actual='" << it->second << "'\n";
+        return false;
+    }
+    std::cout << "[OK]   " << label << " cookie='" << key << "' value='" << it->second << "'\n";
     return true;
 }
 
@@ -411,6 +437,94 @@ int main() {
         "\r\n";
     ok = expect_eq("bad invalid query percent-encoding", parse_with_connection(bad_invalid_query).first,
                    static_cast<uint16_t>(400)) && ok;
+
+    const std::string cookie_valid =
+        "GET /cookie-ok HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "Cookie: sid=abc123; theme=dark; lang=ru\r\n"
+        "\r\n";
+    std::pair<types::HttpStatus, Request> cookie_valid_result = parse_with_connection(cookie_valid);
+    ok = expect_eq("cookie valid status", cookie_valid_result.first, static_cast<uint16_t>(200)) && ok;
+    ok = expect_eq_size("cookie valid count", cookie_valid_result.second.headers.cookies.size(), 3) && ok;
+    ok = expect_cookie("cookie sid", cookie_valid_result.second, "sid", "abc123") && ok;
+    ok = expect_cookie("cookie theme", cookie_valid_result.second, "theme", "dark") && ok;
+    ok = expect_cookie("cookie lang", cookie_valid_result.second, "lang", "ru") && ok;
+
+    const std::string cookie_spaces_and_duplicate =
+        "GET /cookie-dup HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "Cookie: sid=one ; theme = dark ; sid = two\r\n"
+        "\r\n";
+    std::pair<types::HttpStatus, Request> cookie_dup_result = parse_with_connection(cookie_spaces_and_duplicate);
+    ok = expect_eq("cookie duplicate status", cookie_dup_result.first, static_cast<uint16_t>(200)) && ok;
+    ok = expect_cookie("cookie duplicate sid last wins", cookie_dup_result.second, "sid", "two") && ok;
+    ok = expect_cookie("cookie duplicate theme", cookie_dup_result.second, "theme", "dark") && ok;
+
+    const std::string cookie_invalid_name =
+        "GET /cookie-bad-name HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "Cookie: bad@name=1\r\n"
+        "\r\n";
+    ok = expect_eq("cookie invalid name", parse_with_connection(cookie_invalid_name).first,
+                   static_cast<uint16_t>(400)) && ok;
+
+    const std::string cookie_missing_equal =
+        "GET /cookie-missing-eq HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "Cookie: sid=1; broken\r\n"
+        "\r\n";
+    ok = expect_eq("cookie missing equal", parse_with_connection(cookie_missing_equal).first,
+                   static_cast<uint16_t>(400)) && ok;
+
+    const std::string cookie_for_response_helpers =
+        "GET /cookie-use HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "Cookie: sid=abc123; theme=dark\r\n"
+        "\r\n";
+    std::pair<types::HttpStatus, Request> cookie_for_response = parse_with_connection(cookie_for_response_helpers);
+    ok = expect_eq("cookie for response status", cookie_for_response.first, static_cast<uint16_t>(200)) && ok;
+    Cookie sid_cookie;
+    bool sid_found = sid_cookie.fill_from_request_map(cookie_for_response.second.headers.cookies, "sid");
+    ok = expect_true("cookie method fill sid found", sid_found) && ok;
+    ok = expect_eq("cookie method fill sid name", sid_cookie.name, "sid") && ok;
+    ok = expect_eq("cookie method fill sid value", sid_cookie.value, "abc123") && ok;
+
+    Cookie request_cookie;
+    bool request_cookie_found = request_cookie.fill_from_request_map(cookie_for_response.second.headers.cookies, "sid");
+    ok = expect_true("fill cookie from request map found", request_cookie_found) && ok;
+    ok = expect_eq("fill cookie from request map name", request_cookie.name, "sid") && ok;
+    ok = expect_eq("fill cookie from request map value", request_cookie.value, "abc123") && ok;
+
+    Cookie missing_cookie;
+    bool missing_found = missing_cookie.fill_from_request_map(cookie_for_response.second.headers.cookies, "missing");
+    ok = expect_true("cookie method missing cookie not found", !missing_found) && ok;
+
+    Response::_http_response response_cookie_out;
+    response_cookie_out._version = "HTTP/1.1";
+    response_cookie_out._status = types::OK;
+    response_cookie_out._headers["Content-Length"] = "0";
+
+    Cookie custom;
+    custom.name = "theme";
+    custom.value = "dark";
+    custom.path = "/";
+    custom.http_only = true;
+    response_cookie_out._cookies.push_back(custom);
+
+    Cookie session_cookie;
+    session_cookie.set_session("newsid", 3600);
+    response_cookie_out._cookies.push_back(session_cookie);
+
+    Cookie clear_cookie;
+    clear_cookie.clear_session();
+    response_cookie_out._cookies.push_back(clear_cookie);
+
+    ok = expect_eq_size("response cookie count", response_cookie_out._cookies.size(), 3) && ok;
+
+    std::string serialized_response = Response::serialize(response_cookie_out);
+    ok = expect_contains("response has theme set-cookie", serialized_response, "Set-Cookie: theme=dark; Path=/; HttpOnly") && ok;
+    ok = expect_contains("response has sid set-cookie", serialized_response, "Set-Cookie: session_id=newsid; Path=/; Max-Age=3600; HttpOnly; SameSite=Lax") && ok;
+    ok = expect_contains("response has sid clear-cookie", serialized_response, "Set-Cookie: session_id=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax") && ok;
 
     // Long body tests with different Content-Length values
     std::string long_body_exact(12000, 'x');
