@@ -16,8 +16,10 @@ namespace http {
 				ssize_t n = c.read_once();
 				if (n < 0)
 					throw types::BAD_REQUEST;
-				if (n == 0)
+				if (n == 0) {
+					usleep(1000);
 					++attempts;
+				}
 				else
 					return;
 			}
@@ -181,18 +183,20 @@ namespace http {
 			return take;
 		}
 
-		void	__body::try_to_read(Connection& c) const {
-			read_with_attempts(c, types::BAD_REQUEST);
+		void	__body::try_to_read(Connection& c, types::HttpStatus on_timeout) const {
+			read_with_attempts(c, on_timeout);
 		}
 
-		void    __body::fixed_read(Connection& c, size_t content_len) {
+		void    __body::fixed_read(Connection& c, size_t content_len, size_t max_body_size) {
+			if (max_body_size < content_len)
+				throw types::CONTENT_TOO_LARGE;
 			size_t readed = 0;
 			while (readed < content_len) {
 				const std::string& buffered = c.read_buffer();
 				if (!buffered.empty())
 					readed += append_to(c, content, buffered, content_len - readed);
 				else
-					try_to_read(c);
+					try_to_read(c, types::REQUEST_TIMEOUT);
 			}
 		}
 
@@ -201,7 +205,7 @@ namespace http {
 			while (result.length() < 2) {
 				const std::string& buffered = c.read_buffer();
 				if (buffered.empty())
-					try_to_read(c);
+					try_to_read(c, types::REQUEST_TIMEOUT);
 				else {
 					size_t take = 2 - result.length();
 					result.append(buffered, 0, take);
@@ -212,11 +216,15 @@ namespace http {
 				throw types::BAD_REQUEST;
 		}
 
-		void    __body::chunked_read(Connection& c, const std::string& value) {
+		void    __body::chunked_read(Connection& c, const std::string& value, size_t max_body_size) {
 			if (value != "chunked")
 				throw types::NOT_IMPLEMENTED;
+			size_t count = 0;
 			for (size_t chunk_size = get_chunk_size(c); chunk_size; chunk_size = get_chunk_size(c)) {
-				fixed_read(c, chunk_size);
+				count += chunk_size;
+				if (count > max_body_size)
+					throw types::CONTENT_TOO_LARGE;
+				fixed_read(c, chunk_size, max_body_size);
 				check_end_of(c);
 			}
 			check_end_of(c);
@@ -241,7 +249,7 @@ namespace http {
 				}
 				const std::string& buffered = c.read_buffer();
 				if (buffered.empty())
-					try_to_read(c);
+					try_to_read(c, types::REQUEST_TIMEOUT);
 				else {
 					if (!line.empty() && line[line.length() - 1] == '\r' && buffered[0] == '\n') {
 						line.erase(line.length() - 1);
@@ -335,15 +343,6 @@ namespace http {
 					parsed_request.headers.parse_header(single_line, headers_length);
 				}
 				c.consume_read(consumed);
-				std::map<std::string, std::vector<std::string> >::const_iterator body_parsing_mode = parsed_request.check_mandatory_headers();
-				if (body_parsing_mode != parsed_request.headers.header_map.end()) {
-					if (body_parsing_mode->second.empty())
-						throw types::BAD_REQUEST;
-					else if ((body_parsing_mode->first)[0] == 'c')
-						parsed_request.body.fixed_read(c, atoul_base<DECIMAL>(body_parsing_mode->second.front()));
-					else
-						parsed_request.body.chunked_read(c, body_parsing_mode->second.front());
-				}
 			}
 			catch(types::HttpStatus n) { status_code = n; }
 			catch(...) { status_code = types::INTERNAL_SERVER_ERROR; }

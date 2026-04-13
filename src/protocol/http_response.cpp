@@ -317,12 +317,12 @@ namespace http {
 				res._headers["ETag"] = etag;
 		}
 
-		Response::_http_response Response::make_response(const std::pair<types::HttpStatus, Request>& status_req, const types::__location& location) {
+		Response::_http_response Response::make_response(std::pair<types::HttpStatus, Request>& status_req, const types::__location& location) {
 			_http_response res;
 			res._version  = "HTTP/1.1";
 			res._status   = types::OK;
 			const types::HttpStatus parse_status = status_req.first;
-			const Request& req = status_req.second;
+			Request& req = status_req.second;
 
 			// ── 1. Parse error ────────────────────────────────────────────────────
 			if (parse_status != types::OK) {

@@ -135,12 +135,12 @@ namespace http {
 		struct __body {
 				std::string content;
 
-				void    fixed_read(Connection&, size_t);
-				void    chunked_read(Connection&, const std::string&);
+				void    fixed_read(Connection&, size_t, size_t);
+				void    chunked_read(Connection&, const std::string&, size_t);
 
 			private:
 				size_t  append_to(Connection&, std::string&, const std::string&, size_t);
-				void	try_to_read(Connection&) const;
+				void	try_to_read(Connection&, types::HttpStatus) const;
 				size_t  get_chunk_size(Connection&);
 				void	check_end_of(Connection&) const;
 		};
@@ -156,9 +156,20 @@ namespace http {
 				__header_map    headers;
 				__body          body;
 				static  std::pair<types::HttpStatus, Request> parse_message(Connection&);
+				std::map<std::string, std::vector<std::string> >::const_iterator    check_mandatory_headers() const;
+				void	read_body(Connection& c, std::map<std::string, std::vector<std::string> >::const_iterator  it, size_t max_body_length = DefaultMaxBodyLength) {
+					if (it == headers.header_map.end())
+						return;
+					if (it->second.empty())
+						throw types::BAD_REQUEST;
+					if (it->first == "content-length")
+						body.fixed_read(c, atoul_base<DECIMAL>(it->second.front()), max_body_length);
+					else
+						body.chunked_read(c, it->second.front(), max_body_length);
+				}
+
 			private:
 				void    parse_start_line(const std::string&);
-				std::map<std::string, std::vector<std::string> >::const_iterator    check_mandatory_headers() const;
 		};
 	}
 }

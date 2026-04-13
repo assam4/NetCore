@@ -221,7 +221,16 @@ ConnectionHandler::ConnectionHandler(Connection* conn, Server& srv, Dispatcher& 
 			const http::core::VirtualHost* vhost = _http_server.find_vhost(_conn->get_local_port(), host_header);
 			if (!vhost)
 				return false;
+			
 			const types::__location& location = HttpTransaction::get_best_location(*vhost, req.start_line.uri);
+			if (status_req.first == types::OK) {
+				try {
+					std::map<std::string, std::vector<std::string> >::const_iterator body_mode = status_req.second.check_mandatory_headers();
+					status_req.second.read_body(*_conn, body_mode, location.content.client_max_body_size);
+				} catch (types::HttpStatus status) {
+					status_req.first = status;
+				}
+			}
 			Response::_http_response response = Response::make_response(status_req, location);
 			bool created_session = false;
 			std::string sid = _http_server.sessions().ensure_session(req.headers.cookies, created_session);

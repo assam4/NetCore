@@ -27,7 +27,7 @@ namespace http {
 				Connection(const Connection&);
 				Connection& operator=(const Connection&);
 			public:
-				static const std::size_t MAX_READ_BUF = 8 * 1024 * 1024;
+				static const std::size_t MAX_READ_BUF = 64 * 1024 * 1024;
 
 				explicit Connection(int fd, uint16_t _local_port);
 				~Connection();

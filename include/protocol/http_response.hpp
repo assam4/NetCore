@@ -35,7 +35,7 @@ namespace http {
 				std::string _body;
 			};
 
-			static _http_response make_response( const std::pair<types::HttpStatus, Request>&, const types::__location&);
+			static _http_response make_response(std::pair<types::HttpStatus, Request>&, const types::__location&);
 			static std::string serialize(const _http_response&);
 		private:
 			Response();

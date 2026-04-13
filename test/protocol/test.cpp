@@ -130,6 +130,15 @@ static std::pair<types::HttpStatus, Request> parse_with_connection(const std::st
     }
 
     std::pair<types::HttpStatus, Request> out = Request::parse_message(conn);
+    if (out.first == types::OK) {
+        try {
+            std::map<std::string, std::vector<std::string> >::const_iterator mode = out.second.check_mandatory_headers();
+            out.second.read_body(conn, mode, DefaultMaxBodyLength);
+        }
+        catch (types::HttpStatus status) {
+            out.first = status;
+        }
+    }
     ::close(fds[1]);
 
     if (sender_pid > 0) {
@@ -185,6 +194,15 @@ static std::pair<types::HttpStatus, Request> parse_with_parts(
     }
 
     std::pair<types::HttpStatus, Request> out = Request::parse_message(conn);
+    if (out.first == types::OK) {
+        try {
+            std::map<std::string, std::vector<std::string> >::const_iterator mode = out.second.check_mandatory_headers();
+            out.second.read_body(conn, mode, DefaultMaxBodyLength);
+        }
+        catch (types::HttpStatus status) {
+            out.first = status;
+        }
+    }
     ::close(fds[1]);
 
     if (sender_pid > 0) {
