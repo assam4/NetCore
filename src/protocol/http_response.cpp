@@ -91,6 +91,17 @@ namespace http {
 			return ss.str();
 		}
 
+		static std::string strip_location_prefix(const std::string& location_path, const std::string& uri) {
+			if (location_path == "/")
+				return uri;
+			if (uri == location_path)
+				return "/";
+			std::string stripped = uri.substr(location_path.length());
+			if (stripped.empty())
+				return "/";
+			return (stripped[0] == '/') ? stripped : "/" + stripped;
+		}
+
 		std::string Response::resolve_path(const std::string& root, const std::string& uri) {
 			std::string path = root;
 			if (!path.empty() && path[path.size() - 1] == '/')
@@ -358,7 +369,7 @@ namespace http {
 				set_common_fields(res, req);
 				return res;
 			}
-			std::string fs_path = resolve_path(location.content.root, req.start_line.uri);
+			std::string fs_path = resolve_path(location.content.root, strip_location_prefix(location.route.path, req.start_line.uri));
 			struct stat st;
 			if (stat(fs_path.c_str(), &st) != 0) {
 				make_error(res, types::NOT_FOUND, location.content.error_pages);
