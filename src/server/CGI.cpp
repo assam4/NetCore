@@ -3,262 +3,222 @@
 namespace http {
 	namespace core {
 
-		static std::string int_to_str(unsigned long n) {
-			if (n == 0) return "0";
-			std::string s;
-			while (n > 0) {
-				char c = '0' + (n % 10);
-				s.insert(s.begin(), c);
-				n /= 10;
+		std::string CGI::method_to_string(types::HttpMethod m) {
+			switch (m) {
+				case types::GET:
+					return "GET";
+				case types::POST:
+					return "POST";
+				case types::DEL:
+					return "DELETE";
+				default:
+					return "GET";
 			}
-			return s;
 		}
 
-		static std::string uint_to_str(uint16_t n) {
-			return int_to_str(n);
-		}
-
-		static std::pair<std::string, std::string> parse_uri(const std::string& uri) {
-			size_t pos = uri.find('?');
-			if (pos == std::string::npos)
-				return std::make_pair(uri, "");
-			return std::make_pair(uri.substr(0, pos), uri.substr(pos + 1));
-		}
-
-		static std::string extract_server_name(const std::map<std::string, std::vector<std::string> >& headers) {
-			std::map<std::string, std::vector<std::string> >::const_iterator it = headers.find("host");
-			if (it != headers.end() && !it->second.empty()) {
-				std::string host = it->second[0];
-				size_t colon_pos = host.find(':');
-				if (colon_pos != std::string::npos)
-					return host.substr(0, colon_pos);
-				return host;
+		std::string CGI::extract_server_name(const std::map<std::string, std::vector<std::string> >& hdrs) {
+			std::map<std::string, std::vector<std::string> >::const_iterator it = hdrs.find("host");
+			if (it != hdrs.end() && !it->second.empty()) {
+				const std::string& host = it->second[0];
+				size_t colon = host.find(':');
+				return (colon != std::string::npos) ? host.substr(0, colon) : host;
 			}
 			return "localhost";
 		}
 
-		CGI::CGI() {}
-
-		Response::_http_response CGI::exec(
-			const Request& req,
-			const std::string& scriptPath,
-			const std::string& interpreterPath,
-			uint16_t serverPort
-		) {
+		Response::_http_response CGI::make_error(types::HttpStatus  status, const std::string& body) {
 			Response::_http_response res;
-			res._status = types::INTERNAL_SERVER_ERROR;
 			res._version = "HTTP/1.1";
+			res._status  = status;
+			res._body    = body;
+			return res;
+		}
 
-			// Check if script file exists
-			struct stat script_stat;
-			if (stat(scriptPath.c_str(), &script_stat) < 0) {
-				res._status = types::NOT_FOUND;
-				res._body = "CGI script file not found";
-				return res;
+		std::vector<std::string> CGI::build_env(const Request& req, const std::string& scriptPath, uint16_t serverPort) {
+			std::string content_type = "text/plain";
+			std::map<std::string, std::vector<std::string> >::const_iterator ct = req.headers.header_map.find("content-type");
+			if (ct != req.headers.header_map.end() && !ct->second.empty())
+				content_type = ct->second[0];
+			std::vector<std::string> env;
+			env.push_back("REQUEST_METHOD=" + method_to_string(req.start_line.method));
+			env.push_back("QUERY_STRING=" + req.start_line.query);
+			env.push_back("SCRIPT_FILENAME=" + scriptPath);
+			env.push_back("SCRIPT_NAME=" + req.start_line.uri);
+			env.push_back("PATH_INFO=" + req.start_line.uri);
+			env.push_back("PATH_TRANSLATED=" + scriptPath);
+			env.push_back("SERVER_NAME=" + extract_server_name(req.headers.header_map));
+			env.push_back("SERVER_PORT=" + to_string(serverPort));
+			env.push_back("CONTENT_LENGTH=" + to_string(req.body.content.size()));
+			env.push_back("CONTENT_TYPE=" + content_type);
+			env.push_back("SERVER_PROTOCOL=" + req.start_line.version);
+			env.push_back("GATEWAY_INTERFACE=CGI/1.1");
+			env.push_back("REDIRECT_STATUS=200");
+			typedef std::map<std::string, std::vector<std::string> >::const_iterator HdrIt;
+			for (HdrIt h = req.headers.header_map.begin(); h != req.headers.header_map.end(); ++h) {
+				if (h->first == "content-type" || h->first == "content-length" || h->first == "host" || h->second.empty())
+					continue;
+				std::string name = "HTTP_";
+				for (size_t i = 0; i < h->first.size(); ++i) {
+					char c = h->first[i];
+					if (c == '-')
+						name += '_';
+					else if (c >= 'a' && c <= 'z')
+						name += static_cast<char>(c - 'a' + 'A');
+					else
+						name += c;
+				}
+				env.push_back(name + "=" + h->second[0]);
 			}
+			return env;
+		}
 
+		void CGI::parse_cgi_output(const std::string& raw, Response::_http_response& res) {
+			std::string hdr_block;
+			std::string body;
+			size_t sep = raw.find("\r\n\r\n");
+			if (sep != std::string::npos) {
+				hdr_block = raw.substr(0, sep);
+				body = raw.substr(sep + 4);
+			} else {
+				sep = raw.find("\n\n");
+				if (sep != std::string::npos) {
+					hdr_block = raw.substr(0, sep);
+					body = raw.substr(sep + 2);
+				} else {
+					body = raw;
+				}
+			}
+			res._body   = body;
+			res._status = types::OK;
+			std::istringstream stream(hdr_block);
+			std::string line;
+			while (std::getline(stream, line)) {
+				if (!line.empty() && line[line.size() - 1] == '\r')
+					line.erase(line.size() - 1);
+				if (line.compare(0, 7, "Status:") == 0) {
+					int code = std::atoi(line.c_str() + 7);
+					if (code >= 100 && code < 600)
+						res._status = static_cast<types::HttpStatus>(code);
+					continue;
+				}
+				size_t p = line.find(": ");
+				if (p != std::string::npos)
+					res._headers[line.substr(0, p)] = line.substr(p + 2);
+			}
+		}
+
+		pid_t CGI::spawn_child(const Request& req, const std::string& scriptPath, const std::string& interpreterPath, uint16_t serverPort, PipeSet& pipes, int& out_exec_errno) {
 			int in_pipe[2], out_pipe[2], err_pipe[2];
-			if (pipe(in_pipe) < 0 || pipe(out_pipe) < 0 || pipe(err_pipe) < 0) {
-				res._body = "Failed to create pipes";
-				return res;
-			}
-
+			if (pipe(in_pipe) < 0 || pipe(out_pipe) < 0 || pipe(err_pipe) < 0)
+				return -1;
 			pid_t pid = fork();
 			if (pid < 0) {
-				close(in_pipe[0]);
-				close(in_pipe[1]);
-				close(out_pipe[0]);
-				close(out_pipe[1]);
-				close(err_pipe[0]);
-				close(err_pipe[1]);
-				res._body = "Failed to fork";
-				return res;
+				close(in_pipe[0]);  close(in_pipe[1]);
+				close(out_pipe[0]); close(out_pipe[1]);
+				close(err_pipe[0]); close(err_pipe[1]);
+				return -1;
 			}
-
 			if (pid == 0) {
-				// CHILD PROCESS
-				dup2(in_pipe[0], STDIN_FILENO);
+				dup2(in_pipe[0],  STDIN_FILENO);
 				dup2(out_pipe[1], STDOUT_FILENO);
-
+				close(in_pipe[0]);  close(in_pipe[1]);
+				close(out_pipe[0]); close(out_pipe[1]);
+				close(err_pipe[0]);
+				fcntl(err_pipe[1], F_SETFD, FD_CLOEXEC);
+				std::vector<std::string> env_strings = build_env(req, scriptPath, serverPort);
+				std::vector<char*> envp;
+				for (size_t i = 0; i < env_strings.size(); ++i)
+					envp.push_back(const_cast<char*>(env_strings[i].c_str()));
+				envp.push_back(NULL);
+				char* args[3] = {
+					const_cast<char*>(interpreterPath.c_str()),
+					const_cast<char*>(scriptPath.c_str()),
+					NULL
+				};
+				execve(args[0], args, &envp[0]);
+				int err = errno;
+				write(err_pipe[1], &err, sizeof(err));
+				close(err_pipe[1]);
+				_exit(1);
+			}
+			close(in_pipe[0]);
+			close(out_pipe[1]);
+			close(err_pipe[1]);
+			out_exec_errno = 0;
+			ssize_t n = read(err_pipe[0], &out_exec_errno, sizeof(out_exec_errno));
+			close(err_pipe[0]);
+			if (n == static_cast<ssize_t>(sizeof(out_exec_errno))) {
+				waitpid(pid, NULL, 0);
 				close(in_pipe[1]);
 				close(out_pipe[0]);
-				close(err_pipe[0]);  // Close read end in child
-
-				// Set close-on-exec for error pipe
-				fcntl(err_pipe[1], F_SETFD, FD_CLOEXEC);
-
-				std::vector<std::string> env;
-
-				// Convert HttpMethod enum to string
-				std::string method_str;
-			switch (req.start_line.method) {
-				case types::GET:
-					method_str = "GET";
-					break;
-				case types::POST:
-					method_str = "POST";
-					break;
-				case types::DEL:
-					method_str = "DELETE";
-					break;
-				default:
-					method_str = "GET";
+				return -1;
 			}
+			pipes.in_fd  = in_pipe[1];
+			pipes.out_fd = out_pipe[0];
+			return pid;
+		}
 
-			// Parse URI into path and query
-			std::pair<std::string, std::string> uri_parts = parse_uri(req.start_line.uri);
-			std::string path_info = uri_parts.first;
-			std::string query_string = uri_parts.second;
+		void CGI::write_body(int in_fd, const std::string& body) {
+			if (!body.empty()) {
+				signal(SIGPIPE, SIG_IGN);   // child may close stdin before we finish
+				write(in_fd, body.c_str(), body.size());
+			}
+			close(in_fd);
+		}
 
-			// Extract SERVER_NAME from Host header
-			std::string server_name = extract_server_name(req.headers.header_map);
-				env.push_back(std::string("QUERY_STRING=") + query_string);
-				env.push_back(std::string("SCRIPT_FILENAME=") + scriptPath);
-				env.push_back(std::string("SCRIPT_NAME=") + path_info);
-				env.push_back(std::string("PATH_INFO=") + path_info);
-				env.push_back(std::string("PATH_TRANSLATED=") + scriptPath);
-				env.push_back(std::string("SERVER_NAME=") + server_name);
-				env.push_back(std::string("SERVER_PORT=") + uint_to_str(serverPort));
-				env.push_back(std::string("CONTENT_LENGTH=") + int_to_str(req.body.content.size()));
+		std::string CGI::read_output(int out_fd) {
+			std::string output;
+			output.reserve(BUFFER_SIZE);
+			char buf[BUFFER_SIZE];
+			ssize_t r;
+			while ((r = read(out_fd, buf, sizeof(buf))) > 0)
+				output.append(buf, static_cast<size_t>(r));
+			close(out_fd);
+			return output;
+		}
 
-				// Get Content-Type from headers
-				std::string content_type_value = "text/plain";
-				std::map<std::string, std::vector<std::string> >::const_iterator it = req.headers.header_map.find("content-type");
-				if (it != req.headers.header_map.end() && !it->second.empty()) {
-					content_type_value = it->second[0];
-				}
-				env.push_back(std::string("CONTENT_TYPE=") + content_type_value);
-
-				env.push_back("SERVER_PROTOCOL=HTTP/1.1");
-				env.push_back("GATEWAY_INTERFACE=CGI/1.1");
-				env.push_back("REDIRECT_STATUS=200");
-
-				// Add HTTP_* headers from request headers
-				for (std::map<std::string, std::vector<std::string> >::const_iterator hdr = req.headers.header_map.begin();
-				     hdr != req.headers.header_map.end(); ++hdr) {
-					// Skip headers already handled
-					if (hdr->first == "content-type" || hdr->first == "content-length" || hdr->first == "host")
-						continue;
-
-					if (!hdr->second.empty()) {
-						std::string env_name = "HTTP_";
-						for (size_t i = 0; i < hdr->first.size(); ++i) {
-							char c = hdr->first[i];
-							if (c == '-')
-								env_name += '_';
-							else if (c >= 'a' && c <= 'z')
-								env_name += (c - 'a' + 'A');
-							else
-								env_name += c;
-						}
-						env.push_back(env_name + "=" + hdr->second[0]);
-					}
-				}
-				std::vector<char*> envp;
-				for (size_t i = 0; i < env.size(); ++i)
-					envp.push_back(const_cast<char*>(env[i].c_str()));
-				envp.push_back(NULL);
-
-				char* args[3];
-				args[0] = const_cast<char*>(interpreterPath.c_str());
-				args[1] = const_cast<char*>(scriptPath.c_str());
-				args[2] = NULL;
-
-				if (execve(args[0], args, &envp[0]) < 0) {
-					// Write error code to error pipe
-					int err = errno;
-					write(err_pipe[1], &err, sizeof(err));
-					close(err_pipe[1]);
-				}
-				_exit(1);
-			} else {
-				// PARENT PROCESS
-				close(in_pipe[0]);
-				close(out_pipe[1]);
-				close(err_pipe[1]);  // Close write end in parent
-
-				// Check if child process failed to execute
-				char err_code[sizeof(int)];
-				ssize_t err_bytes = read(err_pipe[0], err_code, sizeof(int));
-				close(err_pipe[0]);
-
-				if (err_bytes == sizeof(int)) {
-					// Child exec failed
-					int err = *(int*)err_code;
-					if (err == ENOENT) {
-						res._status = types::NOT_FOUND;
-						res._body = "CGI interpreter or script not found";
-					} else if (err == EACCES) {
-						res._status = types::FORBIDDEN;
-						res._body = "Permission denied executing CGI script";
-					} else {
-						res._status = types::INTERNAL_SERVER_ERROR;
-						res._body = "Failed to execute CGI script";
-					}
-					waitpid(pid, NULL, 0);
-					return res;
-				}
-
-		if (!req.body.content.empty())
-			write(in_pipe[1], req.body.content.c_str(), req.body.content.size());
-		::close(in_pipe[1]);
-		const size_t BUF = 4096;
-		char buffer[BUF];
-		std::string output;
-		ssize_t r;
-		while ((r = read(out_pipe[0], buffer, BUF)) > 0)
-			output.append(buffer, r);
-		close(out_pipe[0]);
-		int status;
-		int wait_count = 0;
-		const int MAX_WAIT_ITERATIONS = 300; // 30 seconds with 100ms sleep
-		while (wait_count < MAX_WAIT_ITERATIONS) {
+		bool CGI::wait_child(pid_t pid, Response::_http_response& res) {
+			const int MAX_ITERATIONS = 300;
+			const int SLEEP_US = 100000;
+			for (int i = 0; i < MAX_ITERATIONS; ++i) {
+				int status = 0;
 				pid_t result = waitpid(pid, &status, WNOHANG);
-				if (result == pid) {
-					break;
-						return res;
-					}
-					usleep(100000); // 100ms
-					wait_count++;
-				}
-
-				if (wait_count >= MAX_WAIT_ITERATIONS) {
-					kill(pid, SIGTERM);
-					usleep(500000); // 500ms
-					kill(pid, SIGKILL);
-					waitpid(pid, &status, 0);
-					res._status = types::GATEWAY_TIMEOUT;
-					res._body = "CGI script timeout";
-					return res;
-				}
-
-				// parse headers from CGI output
-				size_t pos = output.find("\r\n\r\n");
-				std::string headers = pos != std::string::npos ? output.substr(0, pos) : "";
-				std::string body = pos != std::string::npos ? output.substr(pos + 4) : output;
-
-				res._body = body;
-				res._status = types::OK;
-
-				std::istringstream s(headers);
-				std::string line;
-				while (std::getline(s, line)) {
-					if (line.size() > 0 && line[line.size()-1] == '\r')
-						line.erase(line.size()-1);
-
-					size_t p = line.find(": ");
-					if (p != std::string::npos) {
-						std::string key = line.substr(0, p);
-						std::string val = line.substr(p + 2);
-						res._headers[key] = val;
-					}
-					else if (line.find("Status:") == 0) {
-						int code = atoi(line.substr(7).c_str());
-						if (code >= 100 && code < 600)
-							res._status = (types::HttpStatus)code;
-					}
-				}
+				if (result == pid)
+					return true;
+				usleep(SLEEP_US);
 			}
+			kill(pid, SIGTERM);
+			usleep(500000);
+			kill(pid, SIGKILL);
+			waitpid(pid, NULL, 0);
+			res._status = types::GATEWAY_TIMEOUT;
+			res._body = "CGI script timed out";
+			return false;
+		}
+
+		CGI::CGI() {}
+
+		Response::_http_response CGI::exec(const Request& req, const std::string& scriptPath, const std::string& interpreterPath, uint16_t serverPort) {
+			struct stat st;
+			if (stat(scriptPath.c_str(), &st) < 0)
+				return make_error(types::NOT_FOUND, "CGI script not found");
+			PipeSet pipes = {-1, -1};
+			int exec_errno  = 0;
+			pid_t pid = spawn_child(req, scriptPath, interpreterPath, serverPort, pipes, exec_errno);
+			if (pid < 0) {
+				if (exec_errno == ENOENT)
+					return make_error(types::NOT_FOUND, "CGI interpreter not found");
+				if (exec_errno == EACCES)
+					return make_error(types::FORBIDDEN, "Permission denied executing CGI");
+				return make_error(types::INTERNAL_SERVER_ERROR, "Failed to spawn CGI process");
+			}
+			write_body(pipes.in_fd, req.body.content);
+			std::string output = read_output(pipes.out_fd);
+			Response::_http_response res;
+			res._version = "HTTP/1.1";
+			if (!wait_child(pid, res))
+				return res;
+			parse_cgi_output(output, res);
 			return res;
 		}
 

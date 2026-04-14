@@ -189,7 +189,7 @@ namespace http {
 
 		void    __body::fixed_read(Connection& c, size_t content_len, size_t max_body_size) {
 			if (max_body_size < content_len)
-				throw types::CONTENT_TOO_LARGE;
+				throw types::PAYLOAD_TOO_LARGE;
 			size_t readed = 0;
 			while (readed < content_len) {
 				const std::string& buffered = c.read_buffer();
@@ -223,7 +223,7 @@ namespace http {
 			for (size_t chunk_size = get_chunk_size(c); chunk_size; chunk_size = get_chunk_size(c)) {
 				count += chunk_size;
 				if (count > max_body_size)
-					throw types::CONTENT_TOO_LARGE;
+					throw types::PAYLOAD_TOO_LARGE;
 				fixed_read(c, chunk_size, max_body_size);
 				check_end_of(c);
 			}

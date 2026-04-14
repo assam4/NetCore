@@ -93,7 +93,7 @@ namespace   http {
                 uint16_t    code;
                 std::string new_path;
 
-                __route(): code(0) {}
+                __route(): path(""), modifier(""), code(0), new_path("") {}
 
                 void    fill_redirection(const std::pair<std::string, std::string>&);
                 void    fill_location_path(const std::string&);
@@ -110,7 +110,7 @@ namespace   http {
             struct  __location {
                 __route                 route;
                 __content               content;
-                std::set<std::string>   cgi_extension;
+                std::map<std::string, std::string> cgi_extension;
                 std::string             upload_location;
 
                 void    fill_cgi_extension(const std::set<std::string>&);

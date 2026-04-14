@@ -7,6 +7,7 @@
 #include <algorithm>
 #include "utils.hpp"
 #include "http_types.hpp"
+#include "CGI.hpp"
 
 namespace http {
 	namespace core {
@@ -63,7 +64,6 @@ namespace http {
 			}
 			return false;
 		}
-
 
 		std::string Response::uri_encode(const std::string& uri) {
 			std::string encoded;
@@ -144,6 +144,9 @@ namespace http {
 		void Response::make_error(_http_response& res, types::HttpStatus status, const std::map<uint16_t, std::string>& error_pages) {
 			res._status = status;
 			res._headers["Content-Type"] = "text/html";
+			res._headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+			res._headers["Pragma"] = "no-cache";
+			res._headers["Expires"] = "0";
 			std::map<uint16_t, std::string>::const_iterator it = error_pages.find(static_cast<uint16_t>(status));
 			if (it != error_pages.end()) {
 				std::string body = read_file(it->second);
@@ -193,10 +196,18 @@ namespace http {
 			res._headers["Content-Type"] = "text/html";
 		}
 
-		void Response::make_cgi(_http_response& res, const Request& req, const std::string& path, const std::string& ext) {
-			// Wire in your CGI runner here.
-			(void)req; (void)path; (void)ext;
-			make_error(res, types::NOT_IMPLEMENTED, std::map<uint16_t, std::string>());
+		void Response::make_cgi(_http_response& res, const Request& req, const std::string& scriptPath,
+						const std::string& ext, const types::__location& location, uint16_t serverPort){
+			std::map<std::string, std::string>::const_iterator it = location.cgi_extension.find(ext);
+			if (it == location.cgi_extension.end()) {
+				make_error(res, types::FORBIDDEN, location.content.error_pages);
+				return;
+			}
+			const std::string& interpreterPath = it->second;
+			Response::_http_response cgi_res =
+				CGI::exec(req, scriptPath, interpreterPath, serverPort);
+			res = cgi_res;
+			res._version = "HTTP/1.1";
 		}
 
 		void Response::set_connection_field(_http_response& res, const Request& req) {
@@ -317,48 +328,37 @@ namespace http {
 				res._headers["ETag"] = etag;
 		}
 
-		Response::_http_response Response::make_response(std::pair<types::HttpStatus, Request>& status_req, const types::__location& location) {
-			_http_response res;
-			res._version  = "HTTP/1.1";
-			res._status   = types::OK;
-			const types::HttpStatus parse_status = status_req.first;
-			Request& req = status_req.second;
+		void Response::set_common_fields(_http_response& res, const Request& req) {
+			set_server_field(res);
+			set_date_field(res);
+			set_connection_field(res, req);
+			set_body_length_field(res);
+		}
 
-			// ── 1. Parse error ────────────────────────────────────────────────────
+		Response::_http_response Response::make_response(const std::pair<types::HttpStatus, Request>& status_req, const types::__location& location, uint16_t server_port) {
+			_http_response res;
+			res._version = "HTTP/1.1";
+			res._status = types::OK;
+			const types::HttpStatus parse_status = status_req.first;
+			const Request& req = status_req.second;
+
 			if (parse_status != types::OK) {
 				make_error(res, parse_status, location.content.error_pages);
-				set_server_field(res);
-				set_date_field(res);
-				set_connection_field(res, req);
-				set_body_length_field(res);
+				set_common_fields(res, req);
 				return res;
 			}
-
-			// ── 2. Method not allowed ─────────────────────────────────────────────
-			if (!(location.content.allowed_methods &
-				  static_cast<uint8_t>(req.start_line.method))) {
+			if (!(location.content.allowed_methods & static_cast<uint8_t>(req.start_line.method))) {
 				make_error(res, types::METHOD_NOT_ALLOWED, location.content.error_pages);
 				set_allow_field(res, location.content.allowed_methods);
-				set_server_field(res);
-				set_date_field(res);
-				set_connection_field(res, req);
-				set_body_length_field(res);
+				set_common_fields(res, req);
 				return res;
 			}
-
-			// ── 3. Redirect — RFC 7231 §7.1.2 (Location header) ──────────────────
 			if (location.route.code != 0) {
 				make_redirect(res, location.route.code, location.route.new_path);
-				set_server_field(res);
-				set_date_field(res);
-				set_connection_field(res, req);
-				set_body_length_field(res);
+				set_common_fields(res, req);
 				return res;
 			}
-
-			// ── 4. Resolve filesystem path ────────────────────────────────────────
-			std::string fs_path = resolve_path(location.content.root,
-											   req.start_line.uri);
+			std::string fs_path = resolve_path(location.content.root, req.start_line.uri);
 			struct stat st;
 			if (stat(fs_path.c_str(), &st) != 0) {
 				make_error(res, types::NOT_FOUND, location.content.error_pages);
@@ -404,13 +404,9 @@ namespace http {
 				size_t dot = fs_path.find_last_of('.');
 				if (dot != std::string::npos) {
 					std::string ext = fs_path.substr(dot);
-					if (location.cgi_extension.find(ext) !=
-						location.cgi_extension.end()) {
-						make_cgi(res, req, fs_path, ext);
-						set_server_field(res);
-						set_date_field(res);
-						set_connection_field(res, req);
-						set_body_length_field(res);
+					if (location.cgi_extension.find(ext) != location.cgi_extension.end()) {
+						make_cgi(res, req, fs_path, ext, location, server_port);
+						set_common_fields(res, req);
 						return res;
 					}
 				}

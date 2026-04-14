@@ -13,7 +13,8 @@ $(TARGET): $(OBJ)
 	  ../../src/protocol/http_types.cpp \
 	  ../../src/protocol/http_request.cpp \
 	  ../../src/server/Server.cpp \
-	  ../../src/server/Socket.cpp
+	  ../../src/server/Socket.cpp \
+	  ../../src/server/CGI.cpp
 
 clean:
 	rm -f $(OBJ) $(TARGET)

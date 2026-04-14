@@ -48,7 +48,7 @@ namespace http {
 				m[types::GONE] = "Gone";
 				m[types::LENGTH_REQUIRED] = "Length Required";
 				m[types::PRECONDITION_FAILED] = "Precondition Failed";
-				m[types::CONTENT_TOO_LARGE] = "Content Too Large";
+				m[types::PAYLOAD_TOO_LARGE] = "Payload Too Large";
 				m[types::URI_TOO_LONG] = "URI Too Long";
 				m[types::UNSUPPORTED_MEDIA_TYPE] = "Unsupported Media Type";
 				m[types::RANGE_NOT_SATISFIABLE] = "Range Not Satisfiable";
@@ -144,7 +144,7 @@ namespace http {
 			}
 
 			const std::string& MimeTypes::get_mime_type(const std::string& ext) {
-				static const std::string default_type = "application/octet-stream";
+				static const std::string default_type = "text/plain";
 				std::map<std::string, std::string>::const_iterator it = _types.find(ext);
 				if (it != _types.end())
 					return it->second;

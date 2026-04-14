@@ -17,6 +17,7 @@ SRCS =  src/main.cpp \
 		src/server/Reactor.cpp \
 		src/server/Server.cpp \
 		src/server/Socket.cpp \
+		src/server/CGI.cpp \
 		src/lexer/tokenize_factory.cpp \
 		src/parser/configparser.cpp \
 		src/vhosts/virtualhost.cpp \

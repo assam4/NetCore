@@ -203,11 +203,11 @@ namespace   http {
             }
 
             void    __location::fill_cgi_extension(const std::set<std::string>& data) {
-                for(std::set<std::string>::const_iterator it = data.begin(); it != data.end(); ++it)
+                for(std::set<std::string>::const_iterator it = data.begin(); it != data.end(); ++it) {
                     if (*it != ".php" && *it != ".py")
                         throw std::runtime_error("Parsing error: Incorrect cgi extension: '" + *it + "'.\n");
-                    else
-                        cgi_extension.insert(*it);
+                    cgi_extension[*it] = (*it == ".php") ? "/usr/bin/php-cgi" : "/usr/bin/python3";
+                }
             }
         }
     }

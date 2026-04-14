@@ -1,5 +1,6 @@
 #include <algorithm>
 #include "HttpServer.hpp"
+#include <netinet/in.h>
 #include "config_store.hpp"
 #include "utils.hpp"
 
@@ -34,6 +35,12 @@ namespace http {
 					if (raw_fd < 0) {
 						std::cerr << "socket() failed";
 						continue ;
+					}
+					if (addrs[j].first.ss_family == AF_INET6) {
+						int on = 1;
+						if (::setsockopt(raw_fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) < 0) {
+							std::cerr << "setsockopt(IPV6_V6ONLY) failed\n";
+						}
 					}
 					ServerSocket* ss = new ServerSocket(raw_fd);
 					if (::bind(raw_fd, reinterpret_cast<sockaddr*>(&addrs[j].first), addrs[j].second) < 0) {

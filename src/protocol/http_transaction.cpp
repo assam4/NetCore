@@ -34,7 +34,7 @@ namespace http {
 
 		types::HttpStatus HttpTransaction::validate_location_rules(const Request& req, const types::__location& loc) {
 			if (req.body.content.length() > loc.content.client_max_body_size)
-				return types::CONTENT_TOO_LARGE;
+				return types::PAYLOAD_TOO_LARGE;
 			if (!(loc.content.allowed_methods & req.start_line.method))
 				return types::METHOD_NOT_ALLOWED;
 			std::string full_path = loc.content.root + req.start_line.uri;
