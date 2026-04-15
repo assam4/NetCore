@@ -370,6 +370,16 @@ namespace http {
 				set_common_fields(res, req);
 				return res;
 			}
+
+			types::HttpStatus upload_status = types::OK;
+			std::string upload_body;
+			if (Upload::handle_request(req, location, upload_status, res._headers, upload_body)) {
+				res._status = upload_status;
+				res._body = upload_body;
+				set_common_fields(res, req);
+				return res;
+			}
+
 			std::string fs_path = resolve_path(location.content.root, strip_location_prefix(location.route.path, req.start_line.uri));
 			struct stat st;
 			if (stat(fs_path.c_str(), &st) != 0) {

@@ -10,8 +10,25 @@
 namespace http {
 	namespace core {
 
+		/**
+		 * @brief Handles file upload requests for configured upload locations.
+		 *
+		 * Supports both multipart/form-data payloads and raw
+		 * application/octet-stream uploads.
+		 */
 		class   Upload {
             public:
+				/**
+				 * @brief Processes POST upload request and writes payload to disk.
+				 *
+				 * @param req Parsed HTTP request.
+				 * @param location Matched location configuration.
+				 * @param out_status Output response status.
+				 * @param out_headers Output response headers.
+				 * @param out_body Output response body.
+				 * @return true when this component handled the request.
+				 * @return false when request is not an upload candidate.
+				 */
 				static bool handle_request(const Request&, const types::__location&, types::HttpStatus&, std::map<std::string, std::string>&, std::string&);
 			private:
 				Upload();

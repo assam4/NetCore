@@ -8,6 +8,7 @@
 #include <ctime>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 
 #include "http_upload.hpp"
 #include "utils.hpp"
@@ -109,8 +110,9 @@ namespace http {
 		}
 
 		bool Upload::extract_content_disposition_line(std::string part_headers, std::string& out_cd_line) {
-			std::transform(part_headers.begin(), part_headers.end(), part_headers.begin(), static_cast<int(*)(int)>(std::tolower));
-			size_t cd_pos = part_headers.find("content-disposition:");
+			std::string part_headers_lower = part_headers;
+			std::transform(part_headers_lower.begin(), part_headers_lower.end(), part_headers_lower.begin(), static_cast<int(*)(int)>(std::tolower));
+			size_t cd_pos = part_headers_lower.find("content-disposition:");
 			if (cd_pos == std::string::npos)
 				return false;
 			size_t cd_end = part_headers.find("\r\n", cd_pos);
