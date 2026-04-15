@@ -8,6 +8,7 @@
 #include "utils.hpp"
 #include "http_types.hpp"
 #include "CGI.hpp"
+#include "http_upload.hpp"
 
 namespace http {
 	namespace core {
@@ -443,12 +444,6 @@ namespace http {
 				res._headers.erase("Content-Length");
 				res._headers.erase("Transfer-Encoding");
 			}
-
-			// ── 9. POST upload: 201 Created ───────────────────────────────────────
-			// After saving the uploaded file in your upload handler, set:
-			//   res._status                      = types::CREATED;
-			//   res._headers["Location"]         = saved_uri; // RFC 7231 §7.1.2
-			//   res._headers["Content-Location"] = saved_uri; // RFC 7231 §3.1.4.2
 
 			set_server_field(res);
 			set_date_field(res);

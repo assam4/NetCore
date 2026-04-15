@@ -14,6 +14,7 @@ CXXFLAGS = -Wall -Wextra -Werror -std=c++98 \
 TARGET = webserv
 BUILD_DIR = build
 
+<<<<<<< HEAD
 # Source files
 SRCS = src/main.cpp \
        src/server/HttpServer.cpp \
@@ -32,6 +33,26 @@ SRCS = src/main.cpp \
        src/protocol/http_response.cpp \
        src/protocol/http_types.cpp \
        src/protocol/http_transaction.cpp
+=======
+SRCS =  src/main.cpp \
+		src/server/HttpServer.cpp \
+		src/server/Reactor.cpp \
+		src/server/Server.cpp \
+		src/server/Socket.cpp \
+		src/server/CGI.cpp \
+		src/lexer/tokenize_factory.cpp \
+		src/parser/configparser.cpp \
+		src/vhosts/virtualhost.cpp \
+		src/vhosts/server_types.cpp \
+		src/signal/SignalHandler.cpp \
+		src/protocol/http_request.cpp \
+		src/protocol/http_cookie.cpp \
+		src/protocol/session_store.cpp \
+		src/protocol/http_upload.cpp \
+		src/protocol/http_response.cpp \
+		src/protocol/http_types.cpp \
+		src/protocol/http_transaction.cpp
+>>>>>>> 48d0d39 (feat: add upload part with multipart/form-data and application/octet-stream handlers)
 
 # Object files go inside build/
 OBJS = $(SRCS:%.cpp=$(BUILD_DIR)/%.o)
