@@ -92,17 +92,6 @@ namespace http {
 			return ss.str();
 		}
 
-		static std::string strip_location_prefix(const std::string& location_path, const std::string& uri) {
-			if (location_path == "/")
-				return uri;
-			if (uri == location_path)
-				return "/";
-			std::string stripped = uri.substr(location_path.length());
-			if (stripped.empty())
-				return "/";
-			return (stripped[0] == '/') ? stripped : "/" + stripped;
-		}
-
 		std::string Response::resolve_path(const std::string& root, const std::string& uri) {
 			std::string path = root;
 			if (!path.empty() && path[path.size() - 1] == '/')
@@ -360,6 +349,9 @@ namespace http {
 				return res;
 			}
 			if (!(location.content.allowed_methods & static_cast<uint8_t>(req.start_line.method))) {
+				std::cerr << "[DEBUG] Method check FAILED: location=" << location.route.path
+					<< " allowed=" << (int)location.content.allowed_methods
+					<< " method=" << (int)req.start_line.method << std::endl;
 				make_error(res, types::METHOD_NOT_ALLOWED, location.content.error_pages);
 				set_allow_field(res, location.content.allowed_methods);
 				set_common_fields(res, req);
@@ -380,7 +372,31 @@ namespace http {
 				return res;
 			}
 
-			std::string fs_path = resolve_path(location.content.root, strip_location_prefix(location.route.path, req.start_line.uri));
+			if (req.start_line.method == types::DEL) {
+				std::string del_path = resolve_path(location.content.root, req.start_line.uri);
+				struct stat del_st;
+				if (stat(del_path.c_str(), &del_st) != 0) {
+					make_error(res, types::NOT_FOUND, location.content.error_pages);
+					set_common_fields(res, req);
+					return res;
+				}
+				if (S_ISDIR(del_st.st_mode)) {
+					make_error(res, types::FORBIDDEN, location.content.error_pages);
+					set_common_fields(res, req);
+					return res;
+				}
+				if (std::remove(del_path.c_str()) != 0) {
+					make_error(res, types::FORBIDDEN, location.content.error_pages);
+					set_common_fields(res, req);
+					return res;
+				}
+				res._status = types::NO_CONTENT;  // 204
+				res._body.clear();
+				set_common_fields(res, req);
+				return res;
+			}
+
+			std::string fs_path = resolve_path(location.content.root, req.start_line.uri);
 			struct stat st;
 			if (stat(fs_path.c_str(), &st) != 0) {
 				make_error(res, types::NOT_FOUND, location.content.error_pages);
@@ -393,6 +409,12 @@ namespace http {
 
 			// ── 5. Directory ──────────────────────────────────────────────────────
 			if (S_ISDIR(st.st_mode)) {
+				const std::string& uri = req.start_line.uri;
+				if (uri.empty() || uri[uri.size() - 1] != '/') {
+					make_redirect(res, 301, uri + "/");
+					set_common_fields(res, req);
+					return res;
+				}
 				std::string index_path = find_index(fs_path, location.content.index);
 				if (!index_path.empty()) {
 					fs_path = index_path;

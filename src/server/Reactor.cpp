@@ -223,6 +223,7 @@ ConnectionHandler::ConnectionHandler(Connection* conn, Server& srv, Dispatcher& 
 				return false;
 
 			const types::__location& location = HttpTransaction::get_best_location(*vhost, req.start_line.uri);
+			std::cout << "uri --> " << req.start_line.uri << "  root ---> " << location.content.root << std::endl;
 			if (status_req.first == types::OK) {
 				try {
 					std::map<std::string, std::vector<std::string> >::const_iterator body_mode = status_req.second.check_mandatory_headers();

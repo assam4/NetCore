@@ -109,7 +109,7 @@ namespace   http {
                             allowed_methods |= GET;
                         else if (*it == "POST")
                             allowed_methods |= POST;
-                        else if (*it == "DELETE" || *it == "DEL")
+                        else if (*it == "DELETE")
                             allowed_methods |= DEL;
                         else
                             throw std::runtime_error("Parsing error: Unexpected allowed method: '" + *it + "'.\n");

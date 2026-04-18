@@ -37,7 +37,7 @@ namespace http {
 			for (size_t i = 0; i < input.size(); ++i)
 				if (std::isalnum(static_cast<unsigned char>(input[i])) || input[i] == '-' || input[i] == '_' || input[i] == '.')
                     filtered += input[i];
-            return filtered.empty() ? "upload.bin" : filtered; 
+            return filtered.empty() ? "upload.bin" : filtered;
 		}
 
 		std::string Upload::extract_header_token_value(const std::string& header, const std::string& key) {

@@ -5,17 +5,6 @@
 namespace http {
 	namespace core  {
 
-		static std::string strip_location_prefix(const std::string& location_path, const std::string& uri) {
-			if (location_path == "/")
-				return uri;
-			if (uri == location_path)
-				return "/";
-			std::string stripped = uri.substr(location_path.length());
-			if (stripped.empty())
-				return "/";
-			return (stripped[0] == '/') ? stripped : "/" + stripped;
-		}
-
 		const types::__location& HttpTransaction::get_best_location(const VirtualHost& vhost, const std::string& uri_path) {
 			const std::vector<types::__location>& locations = vhost.get_locations();
 			const types::__location* longest_prefix = NULL;
@@ -48,7 +37,7 @@ namespace http {
 			return types::PAYLOAD_TOO_LARGE;
 		if (!(loc.content.allowed_methods & req.start_line.method))
 			return types::METHOD_NOT_ALLOWED;
-		std::string full_path = loc.content.root + strip_location_prefix(loc.route.path, req.start_line.uri);
+		std::string full_path = loc.content.root + req.start_line.uri;
 		if (access(full_path.c_str(), F_OK) != 0)
 			return types::NOT_FOUND;
 		if (access(full_path.c_str(), R_OK) != 0)
