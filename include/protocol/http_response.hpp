@@ -50,7 +50,7 @@ namespace http {
 			static std::string find_index(const std::string& dir_path, const std::set<std::string>& index_files);
 			static std::string build_directory_listing(const std::string& uri, const std::string& dir_path);
 
-			static void make_error(_http_response& res, types::HttpStatus status, const std::map<uint16_t, std::string>& error_pages);
+			static void make_error(_http_response& res, types::HttpStatus status, const std::map<uint16_t, std::string>& error_pages, const std::string& root = "");
 			static void make_redirect(_http_response& res, uint16_t code, const std::string& new_path);
 			static void make_static(_http_response& res, const std::string& path);
 			static void make_cgi(_http_response& res, const Request& req, const std::string& path, const std::string& ext, const types::__location& location, uint16_t server_port);

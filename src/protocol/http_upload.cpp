@@ -181,8 +181,11 @@ namespace http {
 
 		bool Upload::resolve_payload_and_filename(const Request& req, std::string& io_payload, std::string& io_filename, types::HttpStatus& out_status, std::string& out_body) {
 			std::string content_type;
-			if (!read_content_type(req, content_type))
-				return true;
+			if (!read_content_type(req, content_type)) {
+				out_status = types::BAD_REQUEST;
+				out_body = "Missing Content-Type for upload";
+				return false;
+			}
 			if (content_type.find("application/octet-stream") != std::string::npos) {
 				std::map<std::string, std::vector<std::string> >::const_iterator cd = req.headers.header_map.find("content-disposition");
 				if (cd != req.headers.header_map.end() && !cd->second.empty()) {
@@ -192,8 +195,11 @@ namespace http {
 				}
 				return true;
 			}
-			if (content_type.find("multipart/form-data") == std::string::npos)
-				return true;
+			if (content_type.find("multipart/form-data") == std::string::npos) {
+				out_status = types::BAD_REQUEST;
+				out_body = "Unsupported Content-Type for upload";
+				return false;
+			}
 			std::string multipart_filename;
 			std::string multipart_payload;
 			if (!parse_multipart_upload(io_payload, content_type, multipart_filename, multipart_payload)) {

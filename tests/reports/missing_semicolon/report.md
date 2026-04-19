@@ -1,7 +1,7 @@
 # Test Report: missing_semicolon (invalid config)
 
-- **Date:** 2026-04-18 12:57:03
-- **Config:** `configs/missing_semicolon/config.conf`
+- **Date:** 2026-04-19 16:56:33
+- **Config:** `tests/reports/_runtime_configs/configs/missing_semicolon/config.conf`
 - **Result:** ✅ PASS
 
 ## Expected Behaviour
@@ -14,6 +14,5 @@ Server must exit with a **non-zero exit code** on config validation failure.
 
 ### stderr output
 ```
-bind() failed for 0.0.0.0:80
-Server initialization failed: Not have listener
+Config parse failed: Syntax error: Missing semicolon before next property.
 ```

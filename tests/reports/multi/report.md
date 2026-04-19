@@ -1,7 +1,7 @@
 # Test Report: multi
 
-- **Date:** 2026-04-18 12:57:03
-- **Config:** `configs/multi/config.conf`
+- **Date:** 2026-04-19 16:56:33
+- **Config:** `tests/reports/_runtime_configs/configs/multi/config.conf`
 - **Result:** ✅ PASS (3/3)
 
 ## Test Cases

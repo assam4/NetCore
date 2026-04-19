@@ -142,7 +142,7 @@ namespace http {
 			return html.str();
 		}
 
-		void Response::make_error(_http_response& res, types::HttpStatus status, const std::map<uint16_t, std::string>& error_pages) {
+		void Response::make_error(_http_response& res, types::HttpStatus status, const std::map<uint16_t, std::string>& error_pages, const std::string& root) {
 			res._status = status;
 			res._headers["Content-Type"] = "text/html";
 			res._headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
@@ -151,6 +151,8 @@ namespace http {
 			std::map<uint16_t, std::string>::const_iterator it = error_pages.find(static_cast<uint16_t>(status));
 			if (it != error_pages.end()) {
 				std::string body = read_file(it->second);
+				if (body.empty() && !root.empty() && !it->second.empty() && it->second[0] == '/')
+					body = read_file(resolve_path(root, it->second));
 				if (!body.empty()) {
 					res._body = body;
 					return;
@@ -207,6 +209,10 @@ namespace http {
 			const std::string& interpreterPath = it->second;
 			Response::_http_response cgi_res =
 				CGI::exec(req, scriptPath, interpreterPath, serverPort);
+			if (cgi_res._status == types::NOT_FOUND && ext == ".php" && cgi_res._body == "CGI interpreter not found") {
+				make_static(res, scriptPath);
+				return;
+			}
 			res = cgi_res;
 			res._version = "HTTP/1.1";
 		}
@@ -344,7 +350,7 @@ namespace http {
 			const Request& req = status_req.second;
 
 			if (parse_status != types::OK) {
-				make_error(res, parse_status, location.content.error_pages);
+				make_error(res, parse_status, location.content.error_pages, location.content.root);
 				set_common_fields(res, req);
 				return res;
 			}
@@ -352,7 +358,7 @@ namespace http {
 				std::cerr << "[DEBUG] Method check FAILED: location=" << location.route.path
 					<< " allowed=" << (int)location.content.allowed_methods
 					<< " method=" << (int)req.start_line.method << std::endl;
-				make_error(res, types::METHOD_NOT_ALLOWED, location.content.error_pages);
+				make_error(res, types::METHOD_NOT_ALLOWED, location.content.error_pages, location.content.root);
 				set_allow_field(res, location.content.allowed_methods);
 				set_common_fields(res, req);
 				return res;
@@ -371,22 +377,27 @@ namespace http {
 				set_common_fields(res, req);
 				return res;
 			}
+			if (req.start_line.method == types::POST && location.upload_location.empty()) {
+				make_error(res, types::NOT_IMPLEMENTED, location.content.error_pages, location.content.root);
+				set_common_fields(res, req);
+				return res;
+			}
 
 			if (req.start_line.method == types::DEL) {
 				std::string del_path = resolve_path(location.content.root, req.start_line.uri);
 				struct stat del_st;
 				if (stat(del_path.c_str(), &del_st) != 0) {
-					make_error(res, types::NOT_FOUND, location.content.error_pages);
+					make_error(res, types::NOT_FOUND, location.content.error_pages, location.content.root);
 					set_common_fields(res, req);
 					return res;
 				}
 				if (S_ISDIR(del_st.st_mode)) {
-					make_error(res, types::FORBIDDEN, location.content.error_pages);
+					make_error(res, types::FORBIDDEN, location.content.error_pages, location.content.root);
 					set_common_fields(res, req);
 					return res;
 				}
 				if (std::remove(del_path.c_str()) != 0) {
-					make_error(res, types::FORBIDDEN, location.content.error_pages);
+					make_error(res, types::FORBIDDEN, location.content.error_pages, location.content.root);
 					set_common_fields(res, req);
 					return res;
 				}
@@ -399,7 +410,7 @@ namespace http {
 			std::string fs_path = resolve_path(location.content.root, req.start_line.uri);
 			struct stat st;
 			if (stat(fs_path.c_str(), &st) != 0) {
-				make_error(res, types::NOT_FOUND, location.content.error_pages);
+				make_error(res, types::NOT_FOUND, location.content.error_pages, location.content.root);
 				set_server_field(res);
 				set_date_field(res);
 				set_connection_field(res, req);
@@ -419,7 +430,7 @@ namespace http {
 				if (!index_path.empty()) {
 					fs_path = index_path;
 					if (stat(fs_path.c_str(), &st) != 0) {
-						make_error(res, types::NOT_FOUND, location.content.error_pages);
+						make_error(res, types::NOT_FOUND, location.content.error_pages, location.content.root);
 						set_server_field(res);
 						set_date_field(res);
 						set_connection_field(res, req);
@@ -434,7 +445,7 @@ namespace http {
 					set_body_length_field(res);
 					return res;
 				} else {
-					make_error(res, types::FORBIDDEN, location.content.error_pages);
+					make_error(res, types::FORBIDDEN, location.content.error_pages, location.content.root);
 					set_server_field(res);
 					set_date_field(res);
 					set_connection_field(res, req);
@@ -465,7 +476,7 @@ namespace http {
 			//              If-None-Match / If-Modified-Since
 			if (check_precondition(req, res)) {
 				// If-Match failed or If-Unmodified-Since failed → 412
-				make_error(res, types::PRECONDITION_FAILED, location.content.error_pages);
+				make_error(res, types::PRECONDITION_FAILED, location.content.error_pages, location.content.root);
 			} else if (req.start_line.method == types::GET &&
 					   check_conditional(req, res)) {
 				// If-None-Match or If-Modified-Since matched → 304

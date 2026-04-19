@@ -1,7 +1,7 @@
 # Test Report: multi_host
 
-- **Date:** 2026-04-18 12:57:03
-- **Config:** `configs/multi_host/config.conf`
+- **Date:** 2026-04-19 16:56:33
+- **Config:** `tests/reports/_runtime_configs/configs/multi_host/config.conf`
 - **Result:** ✅ PASS (2/2)
 
 ## Test Cases

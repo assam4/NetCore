@@ -1,7 +1,7 @@
 # Test Report: basic
 
-- **Date:** 2026-04-18 12:57:03
-- **Config:** `configs/basic/config.conf`
+- **Date:** 2026-04-19 16:56:33
+- **Config:** `tests/reports/_runtime_configs/configs/basic/config.conf`
 - **Result:** ✅ PASS (9/9)
 
 ## Test Cases

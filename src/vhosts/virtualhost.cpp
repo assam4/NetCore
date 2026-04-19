@@ -101,29 +101,22 @@ namespace http {
 
         VirtualHost& VirtualHost::set_locations(const std::vector<config::parser::__location_row_data>& data) {
             locations.clear();
-            bool has_root_location = false;
-            for (std::vector<config::parser::__location_row_data>::const_iterator it = data.begin();
-                 it != data.end();
-                 ++it) {
-                types::__location loc;
+            for (std::vector<config::parser::__location_row_data>::const_iterator it = data.begin(); it != data.end(); ++it) {
+                types::__location loc = create_default_location();
                 loc.route.fill_location_path(it->path);
                 loc.route.fill_location_modifier(it->modifier);
                 loc.route.fill_redirection(it->ret_redirection);
-
                 loc.content.fill_error_pages(it->error_pages);
                 loc.content.fill_index(it->index);
                 loc.content.fill_allowed_methods(it->allowed_methods);
                 loc.content.fill_root(it->root);
                 loc.content.fill_max_body_size(it->client_max_body_size);
                 loc.content.fill_autoindex(it->autoindex);
-
                 loc.fill_cgi_extension(it->cgi_extension);
                 loc.fill_upload_location(it->upload_location);
                 locations.push_back(loc);
-                if (loc.route.path == "/")
-                    has_root_location = true;
             }
-            if (!has_root_location)
+            if (locations.empty())
                 locations.push_back(create_default_location());
             return *this;
         }

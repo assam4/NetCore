@@ -110,6 +110,7 @@ namespace http {
                     int prevType = (*(it - 1))->getType();
                     if (prevType == Token::OPEN_BRACE || prevType == Token::SEMICOLON || prevType == Token::COMMENT)
                         return;
+                    throw std::runtime_error("Syntax error: Missing semicolon before next property.\n");
                 }
                 else
                     throw std::runtime_error("Syntax error: Unexpected field(property) in this context.\n");
@@ -117,7 +118,7 @@ namespace http {
 
             void    ConfigParser::parseLocationPropery(std::vector<IToken *> &tokens, std::vector<__server_row_data> &pp, std::vector<IToken *>::const_iterator &it) {
                 if (it != tokens.begin() && (*(it - 1))->getType() != Token::LOCATION_MODIFIER)
-                    pp.back().locations.push_back(__location_row_data());
+                    pp.back().locations.push_back(__location_row_data(pp.back()));
                 __location_row_data& current = pp.back().locations.back();
                 if ((*it)->getType() == Token::LOCATION_PATH)
                     current.path = (*it)->getValue();
@@ -209,6 +210,7 @@ namespace http {
                         default:
                             throw std::runtime_error("Syntex error: Unexpected property in server block.\n");
                     }
+                if (it != Tokens.begin()) --it;
             }
 
             void    ConfigParser::setLocationProperty(std::vector<IToken *> &Tokens, __location_row_data& data, std::vector<IToken *>::const_iterator& it) {
@@ -224,6 +226,7 @@ namespace http {
                         default:
                             throw std::runtime_error("Unexpected Location Property");
                     }
+                if (it != Tokens.begin()) --it;
             }
 
         }

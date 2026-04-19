@@ -1,7 +1,7 @@
 # Test Report: location
 
-- **Date:** 2026-04-18 12:57:03
-- **Config:** `configs/location/config.conf`
+- **Date:** 2026-04-19 16:56:33
+- **Config:** `tests/reports/_runtime_configs/configs/location/config.conf`
 - **Result:** ✅ PASS (2/2)
 
 ## Test Cases

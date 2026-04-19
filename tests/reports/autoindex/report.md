@@ -1,7 +1,7 @@
 # Test Report: autoindex
 
-- **Date:** 2026-04-18 12:57:03
-- **Config:** `configs/autoindex/config.conf`
+- **Date:** 2026-04-19 16:56:33
+- **Config:** `tests/reports/_runtime_configs/configs/autoindex/config.conf`
 - **Result:** ✅ PASS (4/4)
 
 ## Test Cases

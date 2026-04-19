@@ -26,6 +26,7 @@ import time
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEBSERV_BIN = os.path.join(BASE_DIR, "build", "webserv")
 REPORTS_DIR = os.path.join(BASE_DIR, "tests", "reports")
+RUNTIME_CONFIGS_DIR = os.path.join(REPORTS_DIR, "_runtime_configs")
 HOST         = "127.0.0.1"
 STARTUP_WAIT = 3.0   # max seconds to wait for port to be ready
 SHUTDOWN_WAIT = 2.0
@@ -154,6 +155,38 @@ def stop_server(proc):
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait()
+
+
+def prepare_runtime_config(config_path):
+    """Create a runtime config with machine-local absolute paths."""
+    with open(config_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Keep configs portable across local/dev/container environments.
+    rewrites = [
+        "/home/lenovo/Desktop/Webserv",
+        "/webserv",
+    ]
+    for prefix in rewrites:
+        content = content.replace(prefix, BASE_DIR)
+
+    os.makedirs(RUNTIME_CONFIGS_DIR, exist_ok=True)
+    rel = os.path.relpath(config_path, BASE_DIR)
+    out_path = os.path.join(RUNTIME_CONFIGS_DIR, rel)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return out_path
+
+
+def reset_scenario_fixtures(scenario_name):
+    """Restore files mutated by tests so runs are repeatable."""
+    if scenario_name == "full":
+        notes_path = os.path.join(BASE_DIR, "configs", "full", "www", "files", "notes.txt")
+        if not os.path.exists(notes_path):
+            os.makedirs(os.path.dirname(notes_path), exist_ok=True)
+            with open(notes_path, "w", encoding="utf-8") as f:
+                f.write("notes from fixture\n")
 
 
 # ── Test-case runner ──────────────────────────────────────────────────────────
@@ -565,7 +598,8 @@ def main():
     # ── Valid config scenarios ──────────────────────────────────────────────
     for scenario in VALID_SCENARIOS:
         name   = scenario["name"]
-        config = scenario["config"].replace("/webserv", BASE_DIR)
+        reset_scenario_fixtures(name)
+        config = prepare_runtime_config(scenario["config"].replace("/webserv", BASE_DIR))
         ports  = scenario["ports"]
         cases  = scenario["cases"]
         rel    = os.path.relpath(config, BASE_DIR)
@@ -603,7 +637,7 @@ def main():
 
     for scenario in ERROR_SCENARIOS:
         name   = scenario["name"]
-        config = scenario["config"].replace("/webserv", BASE_DIR)
+        config = prepare_runtime_config(scenario["config"].replace("/webserv", BASE_DIR))
         rel    = os.path.relpath(config, BASE_DIR)
 
         try:

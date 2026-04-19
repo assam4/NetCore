@@ -1,7 +1,7 @@
 # Test Report: multi_duplicate_ports (invalid config)
 
-- **Date:** 2026-04-18 12:57:03
-- **Config:** `configs/multi_duplicate_ports/config.conf`
+- **Date:** 2026-04-19 16:56:33
+- **Config:** `tests/reports/_runtime_configs/configs/multi_duplicate_ports/config.conf`
 - **Result:** ✅ PASS
 
 ## Expected Behaviour

@@ -1,7 +1,7 @@
 # Test Report: nested_locations
 
-- **Date:** 2026-04-18 12:57:03
-- **Config:** `configs/nested_locations/config.conf`
+- **Date:** 2026-04-19 16:56:33
+- **Config:** `tests/reports/_runtime_configs/configs/nested_locations/config.conf`
 - **Result:** ✅ PASS (3/3)
 
 ## Test Cases
