@@ -16,7 +16,7 @@ namespace http {
 						return *it;
 				} else {
 					bool prefix = uri_path.compare(0, loc_path.length(), loc_path) == 0;
-					bool boundary = loc_path == "/" || uri_path.length() == loc_path.length() || uri_path[loc_path.length()] == '/';
+					bool boundary = loc_path == "/" || uri_path.length() == loc_path.length() || (uri_path.length() > loc_path.length() && uri_path[loc_path.length()] == '/');
 					if (prefix && boundary && loc_path.length() > longest_len) {
 						longest_len = loc_path.length();
 						longest_prefix = &(*it);
