@@ -10,7 +10,7 @@
 #include "configparser.hpp"
 #include "tokenize_factory.hpp"
 
-static const char *DefaultConfigPath = "./config/default.config";
+static const char *DefaultConfigPath = "./configs/default/config.conf";
 
 static const char *choose_config_path(int argc, char *argv[]) {
 	switch (argc) {

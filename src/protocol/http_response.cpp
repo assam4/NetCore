@@ -342,156 +342,170 @@ namespace http {
 			set_body_length_field(res);
 		}
 
-		Response::_http_response Response::make_response(const std::pair<types::HttpStatus, Request>& status_req, const types::__location& location, uint16_t server_port) {
-			_http_response res;
-			res._version = "HTTP/1.1";
+		void Response::init_response(_http_response& res, const Request& req) {
+			res._version = (req.start_line.version == "") ? "HTTP/1.0" : req.start_line.version;
 			res._status = types::OK;
-			const types::HttpStatus parse_status = status_req.first;
-			const Request& req = status_req.second;
+			(void) req;
+		}
 
-			if (parse_status != types::OK) {
-				make_error(res, parse_status, location.content.error_pages, location.content.root);
-				set_common_fields(res, req);
-				return res;
-			}
-			if (!(location.content.allowed_methods & static_cast<uint8_t>(req.start_line.method))) {
-				std::cerr << "[DEBUG] Method check FAILED: location=" << location.route.path
-					<< " allowed=" << (int)location.content.allowed_methods
-					<< " method=" << (int)req.start_line.method << std::endl;
-				make_error(res, types::METHOD_NOT_ALLOWED, location.content.error_pages, location.content.root);
-				set_allow_field(res, location.content.allowed_methods);
-				set_common_fields(res, req);
-				return res;
-			}
-			if (location.route.code != 0) {
-				make_redirect(res, location.route.code, location.route.new_path);
-				set_common_fields(res, req);
-				return res;
-			}
+		bool Response::handle_parse_error(_http_response& res, const Request& req, types::HttpStatus parse_status, const types::__location& location) {
+			if (parse_status == types::OK)
+				return false;
+			make_error(res, parse_status, location.content.error_pages, location.content.root);
+			set_common_fields(res, req);
+			return true;
+		}
 
+		bool Response::handle_method_check(_http_response& res, const Request& req, const types::__location& location) {
+			if (location.content.allowed_methods & static_cast<uint8_t>(req.start_line.method))
+				return false;
+			make_error(res, types::METHOD_NOT_ALLOWED, location.content.error_pages, location.content.root);
+			set_allow_field(res, location.content.allowed_methods);
+			set_common_fields(res, req);
+			return true;
+		}
+
+		bool Response::handle_redirect(_http_response& res, const Request& req, const types::__location& location) {
+			if (location.route.code == 0)
+				return false;
+			make_redirect(res, location.route.code, location.route.new_path);
+			set_common_fields(res, req);
+			return true;
+		}
+
+		bool Response::handle_upload(_http_response& res, const Request& req, const types::__location& location) {
 			types::HttpStatus upload_status = types::OK;
 			std::string upload_body;
 			if (Upload::handle_request(req, location, upload_status, res._headers, upload_body)) {
 				res._status = upload_status;
 				res._body = upload_body;
 				set_common_fields(res, req);
-				return res;
+				return true;
 			}
 			if (req.start_line.method == types::POST && location.upload_location.empty()) {
 				make_error(res, types::NOT_IMPLEMENTED, location.content.error_pages, location.content.root);
 				set_common_fields(res, req);
-				return res;
+				return true;
 			}
+			return false;
+		}
 
-			if (req.start_line.method == types::DEL) {
-				std::string del_path = resolve_path(location.content.root, req.start_line.uri);
-				struct stat del_st;
-				if (stat(del_path.c_str(), &del_st) != 0) {
-					make_error(res, types::NOT_FOUND, location.content.error_pages, location.content.root);
-					set_common_fields(res, req);
-					return res;
-				}
-				if (S_ISDIR(del_st.st_mode)) {
-					make_error(res, types::FORBIDDEN, location.content.error_pages, location.content.root);
-					set_common_fields(res, req);
-					return res;
-				}
-				if (std::remove(del_path.c_str()) != 0) {
-					make_error(res, types::FORBIDDEN, location.content.error_pages, location.content.root);
-					set_common_fields(res, req);
-					return res;
-				}
-				res._status = types::NO_CONTENT;  // 204
-				res._body.clear();
-				set_common_fields(res, req);
-				return res;
-			}
-
-			std::string fs_path = resolve_path(location.content.root, req.start_line.uri);
-			struct stat st;
-			if (stat(fs_path.c_str(), &st) != 0) {
+		bool Response::handle_delete(_http_response& res, const Request& req, const types::__location& location) {
+			if (req.start_line.method != types::DEL)
+				return false;
+			std::string del_path = resolve_path(location.content.root, req.start_line.uri);
+			struct stat del_st;
+			if (stat(del_path.c_str(), &del_st) != 0) {
 				make_error(res, types::NOT_FOUND, location.content.error_pages, location.content.root);
-				set_server_field(res);
-				set_date_field(res);
-				set_connection_field(res, req);
-				set_body_length_field(res);
-				return res;
+				set_common_fields(res, req);
+				return true;
 			}
+			if (S_ISDIR(del_st.st_mode)) {
+				make_error(res, types::FORBIDDEN, location.content.error_pages, location.content.root);
+				set_common_fields(res, req);
+				return true;
+			}
+			if (std::remove(del_path.c_str()) != 0) {
+				make_error(res, types::FORBIDDEN, location.content.error_pages, location.content.root);
+				set_common_fields(res, req);
+				return true;
+			}
+			res._status = types::NO_CONTENT;
+			res._body.clear();
+			set_common_fields(res, req);
+			return true;
+		}
 
-			// ── 5. Directory ──────────────────────────────────────────────────────
-			if (S_ISDIR(st.st_mode)) {
-				const std::string& uri = req.start_line.uri;
-				if (uri.empty() || uri[uri.size() - 1] != '/') {
-					make_redirect(res, 301, uri + "/");
+		bool Response::handle_stat(_http_response& res, const Request& req, const types::__location& location, const std::string& fs_path, struct stat& st) {
+			if (::stat(fs_path.c_str(), &st) == 0)
+				return false;
+			make_error(res, types::NOT_FOUND, location.content.error_pages, location.content.root);
+			set_common_fields(res, req);
+			return true;
+		}
+
+		bool Response::handle_directory(_http_response& res, const Request& req, const types::__location& location, std::string& fs_path, struct stat& st) {
+			if (!S_ISDIR(st.st_mode))
+				return false;
+			const std::string& uri = req.start_line.uri;
+			if (uri.empty() || uri[uri.size() - 1] != '/') {
+				make_redirect(res, 301, uri + "/");
+				set_common_fields(res, req);
+				return true;
+			}
+			std::string index_path = find_index(fs_path, location.content.index);
+			if (!index_path.empty()) {
+				fs_path = index_path;
+				if (stat(fs_path.c_str(), &st) != 0) {
+					make_error(res, types::NOT_FOUND,
+							   location.content.error_pages, location.content.root);
 					set_common_fields(res, req);
-					return res;
+					return true;
 				}
-				std::string index_path = find_index(fs_path, location.content.index);
-				if (!index_path.empty()) {
-					fs_path = index_path;
-					if (stat(fs_path.c_str(), &st) != 0) {
-						make_error(res, types::NOT_FOUND, location.content.error_pages, location.content.root);
-						set_server_field(res);
-						set_date_field(res);
-						set_connection_field(res, req);
-						set_body_length_field(res);
-						return res;
-					}
-				} else if (location.content.autoindex) {
-					make_autoindex(res, req.start_line.uri, fs_path);
-					set_server_field(res);
-					set_date_field(res);
-					set_connection_field(res, req);
-					set_body_length_field(res);
-					return res;
-				} else {
-					make_error(res, types::FORBIDDEN, location.content.error_pages, location.content.root);
-					set_server_field(res);
-					set_date_field(res);
-					set_connection_field(res, req);
-					set_body_length_field(res);
-					return res;
-				}
+				return false;
 			}
-
-			// ── 6. CGI ────────────────────────────────────────────────────────────
-			if (!location.cgi_extension.empty()) {
-				size_t dot = fs_path.find_last_of('.');
-				if (dot != std::string::npos) {
-					std::string ext = fs_path.substr(dot);
-					if (location.cgi_extension.find(ext) != location.cgi_extension.end()) {
-						make_cgi(res, req, fs_path, ext, location, server_port);
-						set_common_fields(res, req);
-						return res;
-					}
-				}
+			if (location.content.autoindex) {
+				make_autoindex(res, req.start_line.uri, fs_path);
+				set_common_fields(res, req);
+				return true;
 			}
+			make_error(res, types::FORBIDDEN, location.content.error_pages, location.content.root);
+			set_common_fields(res, req);
+			return true;
+		}
 
-			// ── 7. Static file ────────────────────────────────────────────────────
-			// make_static sets ETag + Last-Modified — conditional checks must come after
+		bool Response::handle_cgi(_http_response& res, const Request& req, const types::__location& location, const std::string& fs_path, uint16_t server_port) {
+			if (location.cgi_extension.empty())
+				return false;
+			size_t dot = fs_path.find_last_of('.');
+			if (dot == std::string::npos)
+				return false;
+			std::string ext = fs_path.substr(dot);
+			if (location.cgi_extension.find(ext) == location.cgi_extension.end())
+				return false;
+			make_cgi(res, req, fs_path, ext, location, server_port);
+			set_common_fields(res, req);
+			return true;
+		}
+
+		void Response::handle_static(_http_response& res, const Request& req, const types::__location& location, const std::string& fs_path) {
 			make_static(res, fs_path);
-
-			// ── 8. Conditional request checks (RFC 7232) ──────────────────────────
-			// RFC 7232 §6: evaluate If-Match / If-Unmodified-Since BEFORE
-			//              If-None-Match / If-Modified-Since
 			if (check_precondition(req, res)) {
-				// If-Match failed or If-Unmodified-Since failed → 412
 				make_error(res, types::PRECONDITION_FAILED, location.content.error_pages, location.content.root);
-			} else if (req.start_line.method == types::GET &&
-					   check_conditional(req, res)) {
-				// If-None-Match or If-Modified-Since matched → 304
-				// RFC 7232 §4.1: keep ETag + Last-Modified, drop body + content headers
+			} else if (req.start_line.method == types::GET && check_conditional(req, res)) {
 				res._status = types::NOT_MODIFIED;
 				res._body.clear();
 				res._headers.erase("Content-Type");
 				res._headers.erase("Content-Length");
 				res._headers.erase("Transfer-Encoding");
 			}
+			set_common_fields(res, req);
+		}
 
-			set_server_field(res);
-			set_date_field(res);
-			set_connection_field(res, req);
-			set_body_length_field(res);
+		Response::_http_response Response::make_response(const std::pair<types::HttpStatus, Request>& status_req, const types::__location& location, uint16_t server_port) {
+			_http_response res;
+			const types::HttpStatus parse_status = status_req.first;
+			const Request& req = status_req.second;
+			init_response(res, req);
+			if (handle_parse_error (res, req, parse_status, location))
+				return res;
+			if (handle_method_check(res, req, location))
+				return res;
+			if (handle_redirect(res, req, location))
+				return res;
+			if (handle_upload(res, req, location))
+				return res;
+			if (handle_delete(res, req, location))
+				return res;
+			std::string fs_path = resolve_path(location.content.root, req.start_line.uri);
+			struct stat st;
+			if (handle_stat(res, req, location, fs_path, st))
+				return res;
+			if (handle_directory(res, req, location, fs_path, st))
+				return res;
+			if (handle_cgi(res, req, location, fs_path, server_port))
+				return res;
+			handle_static(res, req, location, fs_path);
 			return res;
 		}
 

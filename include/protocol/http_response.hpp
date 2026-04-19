@@ -4,6 +4,7 @@
 # include <map>
 # include <string>
 # include <vector>
+# include <sys/stat.h>
 # include <stdint.h>
 # include "http_types.hpp"
 # include "http_cookie.hpp"
@@ -69,8 +70,17 @@ namespace http {
 			static std::string compute_strong_etag(const std::string& path);
 			static std::string compute_weak_etag(const std::string& path);
 
+			static void init_response(_http_response& res, const Request& req);
+			static bool handle_parse_error(_http_response& res, const Request& req, types::HttpStatus parse_status, const types::__location& location);
+			static bool handle_method_check(_http_response& res, const Request& req, const types::__location& location);
+			static bool handle_redirect(_http_response& res, const Request& req, const types::__location& location);
+			static bool handle_upload(_http_response& res, const Request& req, const types::__location& location);
+			static bool handle_delete(_http_response& res, const Request& req, const types::__location& location);
+			static bool handle_stat(_http_response& res, const Request& req, const types::__location& location, const std::string& fs_path, struct stat& st);
+			static bool handle_cgi(_http_response& res, const Request& req, const types::__location& location, const std::string& fs_path, uint16_t server_port);
+			static bool handle_directory(_http_response& res, const Request& req, const types::__location& location, std::string& fs_path, struct stat& st);
+			static void handle_static(_http_response& res, const Request& req, const types::__location& location, const std::string& fs_path);
 		};
-
 	}
 }
 

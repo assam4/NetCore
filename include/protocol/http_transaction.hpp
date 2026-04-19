@@ -6,6 +6,7 @@
 #include "virtualhost.hpp"
 #include "http_request.hpp"
 #include "http_types.hpp"
+#include "HttpServer.hpp"
 
 namespace http {
     namespace core {
@@ -17,10 +18,9 @@ namespace http {
 				HttpTransaction& operator=(const HttpTransaction&);
 			public:
 				static const types::__location& get_best_location(const VirtualHost& vhost, const std::string& uri_path);
-				static types::HttpStatus validate_location_rules(const Request& req, const types::__location& loc);
+				static bool process(Connection *_conn, HttpServer& http_server);
 		};
-
-    }
+	}
 }
 
 #endif

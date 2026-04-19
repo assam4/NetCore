@@ -73,27 +73,27 @@ namespace http {
 
 		std::set<std::string>   __header_map::make_unique_headers_list() {
 			std::set<std::string> s;
-    		s.insert("host");
-    		s.insert("content-length");
-    		s.insert("content-type");
-    		s.insert("authorization");
-    		s.insert("user-agent");
-    		s.insert("referer");
-    		s.insert("content-encoding");
-    		s.insert("content-language");
-    		s.insert("content-location");
-    		s.insert("content-range");
-    		s.insert("content-md5");
-    		s.insert("date");
-    		s.insert("expect");
-    		s.insert("from");
-    		s.insert("location");
-    		s.insert("max-forwards");
-    		s.insert("server");
-    		s.insert("te");
-    		s.insert("upgrade");
-    		s.insert("via");
-    		return s;
+			s.insert("host");
+			s.insert("content-length");
+			s.insert("content-type");
+			s.insert("authorization");
+			s.insert("user-agent");
+			s.insert("referer");
+			s.insert("content-encoding");
+			s.insert("content-language");
+			s.insert("content-location");
+			s.insert("content-range");
+			s.insert("content-md5");
+			s.insert("date");
+			s.insert("expect");
+			s.insert("from");
+			s.insert("location");
+			s.insert("max-forwards");
+			s.insert("server");
+			s.insert("te");
+			s.insert("upgrade");
+			s.insert("via");
+			return s;
 		}
 
 		const std::set<std::string> __header_map::uniques = make_unique_headers_list();

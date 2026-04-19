@@ -1,1 +1,0 @@
-Hello from Webpage 12 static content.

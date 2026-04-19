@@ -197,7 +197,7 @@ namespace http {
 			#endif
 		}
 
-ConnectionHandler::ConnectionHandler(Connection* conn, Server& srv, Dispatcher& disp, HttpServer& http_server)
+		ConnectionHandler::ConnectionHandler(Connection* conn, Server& srv, Dispatcher& disp, HttpServer& http_server)
 				: _conn(conn), _server(srv), _dispatcher(disp), _http_server(http_server), _half_closed(false), _last_active(time(NULL)) {}
 
 		ConnectionHandler::~ConnectionHandler() {}
@@ -209,38 +209,8 @@ ConnectionHandler::ConnectionHandler(Connection* conn, Server& srv, Dispatcher& 
 				return false;
 			if (n == 0)
 				return true;
-			std::pair<types::HttpStatus, Request> status_req = Request::parse_message(*_conn);
-			const Request& req = status_req.second;
-			std::string host_header;
-			std::map<std::string, std::vector<std::string> >::const_iterator host_it = req.headers.header_map.find("host");
-			if (host_it != req.headers.header_map.end() && !host_it->second.empty())
-				host_header = host_it->second.front();
-			size_t colon_pos = host_header.find(':');
-			if (colon_pos != std::string::npos)
-				host_header.erase(colon_pos);
-			const http::core::VirtualHost* vhost = _http_server.find_vhost(_conn->get_local_port(), host_header);
-			if (!vhost)
+			if (!HttpTransaction::process(_conn, _http_server))
 				return false;
-
-			const types::__location& location = HttpTransaction::get_best_location(*vhost, req.start_line.uri);
-			std::cout << "uri --> " << req.start_line.uri << "  root ---> " << location.content.root << std::endl;
-			if (status_req.first == types::OK) {
-				try {
-					std::map<std::string, std::vector<std::string> >::const_iterator body_mode = status_req.second.check_mandatory_headers();
-					status_req.second.read_body(*_conn, body_mode, location.content.client_max_body_size);
-				} catch (types::HttpStatus status) {
-					status_req.first = status;
-				}
-			}
-			Response::_http_response response = Response::make_response(status_req, location, _conn->get_local_port());
-			bool created_session = false;
-			std::string sid = _http_server.sessions().ensure_session(req.headers.cookies, created_session);
-			if (created_session) {
-				Cookie session_cookie;
-				session_cookie.set_session(sid, SESSION_MAX_AGE);
-				response._cookies.push_back(session_cookie);
-			}
-			_conn->append_write(Response::serialize(response));
 			#if defined(__linux__)
 				_dispatcher.modify_handler(this, EPOLLOUT | EPOLLRDHUP);
 			#elif defined(__APPLE__) || defined(__FreeBSD__)

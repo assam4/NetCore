@@ -1,4 +1,3 @@
-# Compiler and flags
 CXX = c++
 CXXFLAGS = -Wall -Wextra -Werror -std=c++98 \
            -I./include \
@@ -14,7 +13,6 @@ CXXFLAGS = -Wall -Wextra -Werror -std=c++98 \
 TARGET = webserv
 BUILD_DIR = build
 
-# Source files
 SRCS = src/main.cpp \
        src/server/HttpServer.cpp \
        src/server/Reactor.cpp \
@@ -34,10 +32,8 @@ SRCS = src/main.cpp \
        src/protocol/http_types.cpp \
        src/protocol/http_transaction.cpp
 
-# Object files go inside build/
 OBJS = $(SRCS:%.cpp=$(BUILD_DIR)/%.o)
 
-# Colors
 RESET   := \033[0m
 BOLD    := \033[1m
 GREEN   := \033[32m
@@ -47,11 +43,8 @@ MAGENTA := \033[35m
 RED     := \033[31m
 DIM     := \033[2m
 
-.PHONY: all clean fclean re
-
 all: $(BUILD_DIR)/$(TARGET)
 
-# Create build directory structure
 $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)/src/server \
 	          $(BUILD_DIR)/src/lexer \
@@ -60,13 +53,11 @@ $(BUILD_DIR):
 	          $(BUILD_DIR)/src/signal \
 	          $(BUILD_DIR)/src/protocol
 
-# Linking - executable will be in build/webserv
 $(BUILD_DIR)/$(TARGET): $(OBJS) | $(BUILD_DIR)
 	@echo "$(BOLD)$(CYAN)Linking → $(MAGENTA)$(BUILD_DIR)/$(TARGET)$(RESET)"
 	@$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 	@echo "$(BOLD)$(GREEN)✓ Build complete → $(BUILD_DIR)/$(TARGET)$(RESET)"
 
-# Compilation rule
 $(BUILD_DIR)/%.o: %.cpp | $(BUILD_DIR)
 	@echo "$(DIM)$(YELLOW)Compiling $<$(RESET)"
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -82,3 +73,5 @@ fclean: clean
 	@echo "$(DIM)Done$(RESET)"
 
 re: fclean all
+
+.PHONY: all clean fclean re
