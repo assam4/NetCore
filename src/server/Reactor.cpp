@@ -198,17 +198,46 @@ namespace http {
 		}
 
 		ConnectionHandler::ConnectionHandler(Connection* conn, Server& srv, Dispatcher& disp, HttpServer& http_server)
-				: _conn(conn), _server(srv), _dispatcher(disp), _http_server(http_server), _half_closed(false), _last_active(time(NULL)) {}
+				: _conn(conn), _server(srv), _dispatcher(disp), _http_server(http_server), _half_closed(false), _last_active(time(NULL)), _first_incomplete(0) {}
 
 		ConnectionHandler::~ConnectionHandler() {}
 
+		void ConnectionHandler::handle_timeout() {
+		_conn->invalidate();
+		uint16_t status = 408;
+		std::string body = types::DefaultErrorPages::get_default_content(status);
+		std::string response =
+			"HTTP/1.1 408 Request Timeout\r\n"
+			"Content-Type: text/html\r\n"
+			"Content-Length: " + to_string(body.size()) + "\r\n"
+			"Connection: close\r\n"
+			"\r\n" +
+			body;
+		_conn->append_write(response);
+		#if defined(__linux__)
+			_dispatcher.modify_handler(this, EPOLLOUT | EPOLLRDHUP);
+		#elif defined(__APPLE__) || defined(__FreeBSD__)
+			_dispatcher.modify_handler(this, EVFILT_WRITE);
+		#endif
+		}
+
 		bool ConnectionHandler::handle_read() {
-			_last_active = time(NULL);
 			ssize_t n = _conn->read_once();
 			if (n < 0)
 				return false;
 			if (n == 0)
+				return false;
+			if (_conn->read_buffer().find("\r\n\r\n") == std::string::npos) {
+				if (_first_incomplete == 0)
+					_first_incomplete = time(NULL);
+				if (time(NULL) - _first_incomplete > TIMEOUT) {
+					handle_timeout();
+					return true;
+				}
 				return true;
+			}
+			_first_incomplete = 0;
+			_last_active = time(NULL);
 			if (!HttpTransaction::process(_conn, _http_server))
 				return false;
 			#if defined(__linux__)

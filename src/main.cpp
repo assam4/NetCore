@@ -71,6 +71,8 @@ static void run_server(const std::vector<http::config::parser::__server_row_data
 
 int main(int argc, char *argv[]) {
 	try {
+		std::ios::sync_with_stdio(true);
+		std::cout.setf(std::ios::unitbuf);
 		http::core::SignalHandler::setup();
 		std::string config_content = read_config_content(argc, argv);
 		http::config::lexer::TokenFactory tokenizer;

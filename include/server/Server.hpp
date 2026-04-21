@@ -40,6 +40,7 @@ namespace http {
 				bool has_pending_write() const;
 				bool is_alive() const;
 				int get_fd() const;
+				void invalidate();
 				uint16_t get_local_port() const;
 
 				static Connection* make_connection(class ServerSocket& server);

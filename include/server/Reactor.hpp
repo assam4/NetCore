@@ -89,18 +89,21 @@ namespace http {
 		 */
 		class ConnectionHandler : public AEventHandler {
 			private:
+				static const int TIMEOUT = 60;
 				Connection* _conn;
 				Server& _server;
 				Dispatcher& _dispatcher;
 				HttpServer& _http_server;
 				bool _half_closed;
 				time_t _last_active;
+				time_t _first_incomplete;
 
 				ConnectionHandler(const ConnectionHandler&);
 				ConnectionHandler& operator=(const ConnectionHandler&);
 
 				bool handle_read();
 				bool handle_write();
+				void handle_timeout();
 				void clean_up();
 			public:
 				ConnectionHandler(Connection* conn, Server& server, Dispatcher& dispatcher, HttpServer& http_server);

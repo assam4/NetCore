@@ -65,6 +65,10 @@ namespace http {
 			return _socket.get_fd();
 		}
 
+		void Connection::invalidate() {
+			return _socket.invalidate();
+		}
+
 		uint16_t Connection::get_local_port() const {
 			return _local_port;
 		}
