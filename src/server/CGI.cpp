@@ -7,6 +7,8 @@ namespace http {
 			switch (m) {
 				case types::GET:
 					return "GET";
+				case types::HEAD:
+					return "HEAD";
 				case types::POST:
 					return "POST";
 				case types::DEL:

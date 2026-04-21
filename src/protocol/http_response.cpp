@@ -291,6 +291,11 @@ namespace http {
 			std::string list;
 			if (methods & types::GET)
 				list += "GET";
+			if (methods & types::HEAD) {
+				if (!list.empty())
+					list += ", ";
+				list += "HEAD";
+			}
 			if (methods & types::POST) {
 				if (!list.empty())
 					list += ", ";
@@ -496,25 +501,51 @@ namespace http {
 			const types::HttpStatus parse_status = status_req.first;
 			const Request& req = status_req.second;
 			init_response(res, req);
-			if (handle_parse_error (res, req, parse_status, location))
+			if (handle_parse_error (res, req, parse_status, location)) {
+				if (req.start_line.is_head)
+					res._body.clear();
 				return res;
-			if (handle_method_check(res, req, location))
+			}
+			if (handle_method_check(res, req, location)) {
+				if (req.start_line.is_head)
+					res._body.clear();
 				return res;
-			if (handle_redirect(res, req, location))
+			}
+			if (handle_redirect(res, req, location)) {
+				if (req.start_line.is_head)
+					res._body.clear();
 				return res;
-			if (handle_upload(res, req, location))
+			}
+			if (handle_upload(res, req, location)) {
+				if (req.start_line.is_head)
+					res._body.clear();
 				return res;
-			if (handle_delete(res, req, location))
+			}
+			if (handle_delete(res, req, location)) {
+				if (req.start_line.is_head)
+					res._body.clear();
 				return res;
+			}
 			std::string fs_path = resolve_path(location.content.root, req.start_line.uri);
 			struct stat st;
-			if (handle_stat(res, req, location, fs_path, st))
+			if (handle_stat(res, req, location, fs_path, st)) {
+				if (req.start_line.is_head)
+					res._body.clear();
 				return res;
-			if (handle_directory(res, req, location, fs_path, st))
+			}
+			if (handle_directory(res, req, location, fs_path, st)) {
+				if (req.start_line.is_head)
+					res._body.clear();
 				return res;
-			if (handle_cgi(res, req, location, fs_path, server_port))
+			}
+			if (handle_cgi(res, req, location, fs_path, server_port)) {
+				if (req.start_line.is_head)
+					res._body.clear();
 				return res;
+			}
 			handle_static(res, req, location, fs_path);
+			if (req.start_line.is_head)
+				res._body.clear();
 			return res;
 		}
 

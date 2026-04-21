@@ -36,6 +36,9 @@ namespace http {
 				std::string         query;
 				std::string         version;
 				types::HttpMethod   method;
+				bool                is_head;
+
+				__start_line() : method(types::GET), is_head(false) {}
 
 				void    critical_cases_check(const std::string& line) const {
 					if (line.empty() || line.length() > StartLineLength
@@ -44,7 +47,12 @@ namespace http {
 				}
 
 				void    parse_method(const std::string& line, size_t start, size_t end) {
+					is_head = false;
 					if (line.compare(start, end, "GET") == 0)			method = types::GET;
+					else if (line.compare(start, end, "HEAD") == 0) {
+						method = types::HEAD;
+						is_head = true;
+					}
 					else if (line.compare(start, end, "POST") == 0)		method = types::POST;
 					else if (line.compare(start, end, "DELETE") == 0)	method = types::DEL;
 					else

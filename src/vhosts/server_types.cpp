@@ -107,6 +107,8 @@ namespace   http {
                     for (std::set<std::string>::const_iterator  it = data.begin(); it != data.end(); ++it) {
                         if (*it == "GET")
                             allowed_methods |= GET;
+                        else if (*it == "HEAD")
+                            allowed_methods |= HEAD;
                         else if (*it == "POST")
                             allowed_methods |= POST;
                         else if (*it == "DELETE")
@@ -203,12 +205,24 @@ namespace   http {
             }
 
             void    __location::fill_cgi_extension(const std::set<std::string>& data) {
-                for(std::set<std::string>::const_iterator it = data.begin(); it != data.end(); ++it) {
+                std::string interpreter_override;
+                for (std::set<std::string>::const_iterator it = data.begin(); it != data.end(); ++it) {
                     if (!it->empty() && (*it)[0] == '/')
+                        interpreter_override = *it;
+                }
+                for (std::set<std::string>::const_iterator it = data.begin(); it != data.end(); ++it) {
+                    if (it->empty() || (*it)[0] == '/')
                         continue;
-                    if (*it != ".php" && *it != ".py")
+                    if ((*it)[0] != '.')
                         throw std::runtime_error("Parsing error: Incorrect cgi extension: '" + *it + "'.\n");
-                    cgi_extension[*it] = (*it == ".php") ? "/usr/bin/php-cgi" : "/usr/bin/python3";
+                    if (!interpreter_override.empty())
+                        cgi_extension[*it] = interpreter_override;
+                    else if (*it == ".php")
+                        cgi_extension[*it] = "/usr/bin/php-cgi";
+                    else if (*it == ".py")
+                        cgi_extension[*it] = "/usr/bin/python3";
+                    else
+                        throw std::runtime_error("Parsing error: Missing interpreter for cgi extension: '" + *it + "'.\n");
                 }
             }
         }
