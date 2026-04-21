@@ -262,12 +262,21 @@ namespace http {
 			std::map<std::string, std::string>::const_iterator it = res._headers.find("Connection");
 			if (it != res._headers.end())
 				connection = it->second;
+			bool no_message_body = (res._status >= types::CONTINUE && res._status < types::OK)
+				|| res._status == types::NO_CONTENT
+				|| res._status == types::NOT_MODIFIED;
+			if (no_message_body) {
+				res._headers.erase("Content-Length");
+				res._headers.erase("Transfer-Encoding");
+				return;
+			}
 			if (!res._body.empty())
 				res._headers["Content-Length"] = to_string(res._body.size());
 			else if (is_1_1 && connection == "keep-alive")
-				res._headers["Transfer-Encoding"] = "chunked";
+				res._headers["Content-Length"] = "0";
 			else
 				res._headers["Connection"] = "close";
+			res._headers.erase("Transfer-Encoding");
 		}
 
 		void Response::set_content_type_field(_http_response& res, const std::string& path) {

@@ -77,7 +77,6 @@ namespace http {
 			s.insert("content-length");
 			s.insert("content-type");
 			s.insert("authorization");
-			s.insert("user-agent");
 			s.insert("referer");
 			s.insert("content-encoding");
 			s.insert("content-language");
