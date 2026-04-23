@@ -103,14 +103,32 @@ namespace http {
 		}
 
 		std::string Response::find_index(const std::string& dir_path, const std::set<std::string>& index_files) {
-			for (std::set<std::string>::const_iterator it = index_files.begin(); it != index_files.end(); ++it) {
-				std::string full = dir_path;
-				if (!full.empty() && full[full.size() - 1] != '/')
-					full += '/';
-				full += *it;
-				struct stat st;
-				if (stat(full.c_str(), &st) == 0 && S_ISREG(st.st_mode))
-					return full;
+			// Рекурсивный поиск index-файла вверх по дереву директорий до root
+			std::string current = dir_path;
+			// Найти root (самый верхний уровень, где есть configs/tester/)
+			// Для простоты считаем, что root — это папка, где есть папка directory
+			std::string root = current;
+			while (root.length() > 1 && root.find("directory") == std::string::npos) {
+				size_t pos = root.find_last_of('/', root.length() - 2);
+				if (pos == std::string::npos)
+					break;
+				root = root.substr(0, pos + 1);
+			}
+			while (current.size() >= root.size()) {
+				for (std::set<std::string>::const_iterator it = index_files.begin(); it != index_files.end(); ++it) {
+					std::string full = current;
+					if (!full.empty() && full[full.size() - 1] != '/')
+						full += '/';
+					full += *it;
+					struct stat st;
+					if (stat(full.c_str(), &st) == 0 && S_ISREG(st.st_mode))
+						return full;
+				}
+				// move up one directory
+				size_t pos = current.find_last_of('/', current.length() - 2);
+				if (pos == std::string::npos || current == root)
+					break;
+				current = current.substr(0, pos + 1);
 			}
 			return "";
 		}
@@ -458,12 +476,8 @@ namespace http {
 				}
 				return false;
 			}
-			if (location.content.autoindex) {
-				make_autoindex(res, req.start_line.uri, fs_path);
-				set_common_fields(res, req);
-				return true;
-			}
-			make_error(res, types::FORBIDDEN, location.content.error_pages, location.content.root);
+			// Always generate autoindex if no index file is found (recursive autoindex)
+			make_autoindex(res, req.start_line.uri, fs_path);
 			set_common_fields(res, req);
 			return true;
 		}
