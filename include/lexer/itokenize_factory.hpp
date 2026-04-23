@@ -19,7 +19,7 @@ namespace http {
             public:
                 virtual ~IToken() {}
                 virtual int getType() const throw() = 0;
-                virtual const std::string &getValue() const throw() = 0;
+                virtual const std::string getValue() const throw() = 0;
                 virtual void setType(int) throw() = 0;
                 virtual void setValue(const std::string &) = 0;
                 virtual IToken *clone() const = 0;

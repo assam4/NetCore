@@ -136,10 +136,18 @@ namespace http {
                             && (prevType == Token::LISTEN || prevType == Token::SERVER_NAME))
                     setServerProperty(Tokens, pp.back(), it);
                 else if ((blockState & (Token::LOCATION & ~Token::PROPERTY))
-                            && (prevType == Token::CGI_EXTENSION || prevType == Token::UPLOAD_LOCATION))
+                            && (prevType == Token::CGI_EXTENSION || prevType == Token::UPLOAD_LOCATION)) {
+                    if (pp.empty() || pp.back().locations.empty())
+                        throw std::runtime_error("No valid location block for setLocationProperty");
                     setLocationProperty(Tokens, pp.back().locations.back(), it);
+                }
                 else if (blockState & (1 << 8))  // in LOCATION block
+                {
+                    if (pp.empty() || pp.back().locations.empty()) {
+                        throw std::runtime_error("No valid location block for setSharedProperty");
+                    }
                     setSharedProperty(Tokens, it, static_cast<__shared_row_data*>(&pp.back().locations.back()));
+                }
                 else if (blockState & (1 << 7))   // in SERVER block
                     setSharedProperty(Tokens, it, static_cast<__shared_row_data*>(&pp.back()));
                 else
