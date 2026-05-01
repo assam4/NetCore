@@ -11,6 +11,16 @@ namespace http {
 	namespace core  {
 
 		/**
+		* @brief HTTP request parsing states.
+		*/
+		enum ReadState{
+			READ_HEADERS,
+			READ_BODY_CHUNKED,
+			READ_BODY_CONTENT_LENGTH,
+			READ_COMPLETE
+		};
+
+		/**
 		 * @class Connection
 		 * @brief Buffered wrapper over a connected client socket.
 		 * @details Stores read/write buffers and exposes incremental I/O helpers.
@@ -23,6 +33,8 @@ namespace http {
 				std::size_t  _write_offset;
 				uint16_t _local_port;
 				ClientSocket _socket;
+				ReadState _state;
+				size_t _content_length;
 
 				Connection(const Connection&);
 				Connection& operator=(const Connection&);
@@ -42,6 +54,10 @@ namespace http {
 				int get_fd() const;
 				void invalidate();
 				uint16_t get_local_port() const;
+				ReadState get_state() const;
+				void set_state(ReadState state);
+				bool chunked_complete() const;
+				bool content_length_complete() const;
 
 				static Connection* make_connection(class ServerSocket& server);
 		};

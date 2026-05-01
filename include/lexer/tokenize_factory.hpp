@@ -53,7 +53,7 @@ namespace http {
                     Token(Type t, std::string val) : type(t), value(val) {}
                     Token(Type t) : type(t) {}
                     int     getType() const throw() { return static_cast<int>(type); }
-                    const std::string getValue() const throw() { return value; }
+                    const std::string &getValue() const throw() { return value; }
                     void    setType(int t) throw() { type = static_cast<Type>(t); }
                     void    setValue(const std::string &val) { value = val; }
                     IToken *clone() const { return new Token(*this); }

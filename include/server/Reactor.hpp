@@ -34,7 +34,7 @@ namespace http {
 			private:
 				static const int CONN_TIMEOUT = 30;
 				static const int MAX_EVENTS = 1024;
-				static const int EPOLL_TIMEOUT = 5000;
+				static const int EPOLL_TIMEOUT = 10000;
 
 				int _epfd;
 				bool _running;
@@ -89,7 +89,8 @@ namespace http {
 		 */
 		class ConnectionHandler : public AEventHandler {
 			private:
-				static const int TIMEOUT = 60;
+				static const int HEADER_TIMEOUT = 10000;
+
 				Connection* _conn;
 				Server& _server;
 				Dispatcher& _dispatcher;
@@ -104,6 +105,7 @@ namespace http {
 				bool handle_read();
 				bool handle_write();
 				void handle_timeout();
+				const VirtualHost* find_virtual_host(const std::pair<types::HttpStatus, Request>& parsed_req);
 				void clean_up();
 			public:
 				ConnectionHandler(Connection* conn, Server& server, Dispatcher& dispatcher, HttpServer& http_server);

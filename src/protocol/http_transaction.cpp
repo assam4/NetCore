@@ -34,19 +34,27 @@ namespace http {
 			throw std::runtime_error("No root location found");
 		}
 
+		void HttpTransaction::prepare(Connection* _conn, HttpServer& _http_server,  std::pair<types::HttpStatus, Request>& parsed_req) {
+			const Request& req = parsed_req.second;
+			if (parsed_req.first == types::OK) {
+				std::map<std::string, std::vector<std::string> >::const_iterator body_mode;
+				try {
+					body_mode = req.check_mandatory_headers();
+				} catch (types::HttpStatus status) {
+					parsed_req.first = status;
+					_conn->set_state(READ_COMPLETE);
+					return ;
+				}
+				if (body_mode == parsed_req.second.headers.header_map.end())
+					_conn->set_state(READ_COMPLETE);
+				else if ()
+			}
+			else
+				_conn->set_state(READ_COMPLETE);
+		}
+
+
 		bool HttpTransaction::process(Connection *_conn, HttpServer& _http_server) {
-			std::pair<types::HttpStatus, Request> status_req = Request::parse_message(*_conn);
-			const Request& req = status_req.second;
-			std::string host_header;
-			std::map<std::string, std::vector<std::string> >::const_iterator host_it = req.headers.header_map.find("host");
-			if (host_it != req.headers.header_map.end() && !host_it->second.empty())
-				host_header = host_it->second.front();
-			size_t colon_pos = host_header.find(':');
-			if (colon_pos != std::string::npos)
-				host_header.erase(colon_pos);
-			const http::core::VirtualHost* vhost = _http_server.find_vhost(_conn->get_local_port(), host_header);
-			if (!vhost)
-				return false;
 			const types::__location& location = HttpTransaction::get_best_location(*vhost, req.start_line.uri);
 			if (status_req.first == types::OK) {
 				try {

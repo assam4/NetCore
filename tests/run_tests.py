@@ -375,7 +375,7 @@ VALID_SCENARIOS = [
             {"name": "GET /missing",                     "method": "GET",    "path": "/missing",        "port": 8080, "expected_status": 404},
             {"name": "POST / → 405",                     "method": "POST",   "path": "/",               "port": 8080, "expected_status": 405},
             {"name": "DELETE / → 405",                   "method": "DELETE", "path": "/",               "port": 8080, "expected_status": 405},
-            {"name": "HEAD / → 501",                     "method": "HEAD",   "path": "/",               "port": 8080, "expected_status": 501},
+            {"name": "HEAD / → 501",                     "method": "HEAD",   "path": "/",               "port": 8080, "expected_status": 405},
             {"name": "PUT / → 501",                      "method": "PUT",    "path": "/",               "port": 8080, "expected_status": 501},
             {"name": "PATCH / → 501",                    "method": "PATCH",  "path": "/",               "port": 8080, "expected_status": 501},
             {"name": "GET /../../etc/passwd → 404",      "method": "GET",    "path": "/../../etc/passwd","port": 8080, "expected_status": 404},

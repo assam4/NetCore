@@ -221,23 +221,39 @@ namespace http {
 		#endif
 		}
 
+		const VirtualHost* ConnectionHandler::find_virtual_host(const std::pair<types::HttpStatus, Request>& parsed_req) {
+			const Request& req = parsed_req.second;
+			std::string host_header;
+			std::map<std::string, std::vector<std::string> >::const_iterator host_it = req.headers.header_map.find("host");
+			if (host_it != req.headers.header_map.end() && !host_it->second.empty())
+				host_header = host_it->second.front();
+			size_t colon_pos = host_header.find(':');
+			if (colon_pos != std::string::npos)
+				host_header.erase(colon_pos);
+			return _http_server.find_vhost(_conn->get_local_port(), host_header);
+		}
+
 		bool ConnectionHandler::handle_read() {
 			ssize_t n = _conn->read_once();
-			if (n < 0)
+			if (n <= 0)
 				return false;
-			if (n == 0)
-				return false;
-			if (_conn->read_buffer().find("\r\n\r\n") == std::string::npos) {
-				if (_first_incomplete == 0)
-					_first_incomplete = time(NULL);
-				if (time(NULL) - _first_incomplete > TIMEOUT) {
-					handle_timeout();
+			_last_active = time(NULL);
+			if (_conn->get_state() == READ_HEADERS) {
+				if (_conn->read_buffer().find("\r\n\r\n") == std::string::npos) {
+					if (_first_incomplete == 0)
+						_first_incomplete = time(NULL);
+					if (time(NULL) - _first_incomplete > HEADER_TIMEOUT) {
+						handle_timeout();
+						return true;
+					}
 					return true;
 				}
-				return true;
+				_first_incomplete = 0;
+				std::pair<types::HttpStatus, Request> parsed_req = Request::parse_message(*_conn);
+				const http::core::VirtualHost* vhost = find_virtual_host(parsed_req);
+				if (!vhost)
+					
 			}
-			_first_incomplete = 0;
-			_last_active = time(NULL);
 			if (!HttpTransaction::process(_conn, _http_server))
 				return false;
 			#if defined(__linux__)

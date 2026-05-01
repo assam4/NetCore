@@ -71,6 +71,7 @@ namespace http {
 			static std::string compute_weak_etag(const std::string& path);
 
 			static void init_response(_http_response& res, const Request& req);
+			static void build_response(_http_response& res, const Request& req, types::HttpStatus parse_status, const types::__location& location, uint16_t server_port);
 			static bool handle_parse_error(_http_response& res, const Request& req, types::HttpStatus parse_status, const types::__location& location);
 			static bool handle_method_check(_http_response& res, const Request& req, const types::__location& location);
 			static bool handle_redirect(_http_response& res, const Request& req, const types::__location& location);

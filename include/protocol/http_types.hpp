@@ -82,9 +82,9 @@ namespace http {
 
 			enum HttpMethod {
 				GET = 1 << 0,
-				POST = 1 << 1,
-				DEL = 1 << 2,
-				HEAD = 1 << 3
+				HEAD = 1 << 1,
+				POST = 1 << 2,
+				DEL = 1 << 3
 			};
 
 			/**

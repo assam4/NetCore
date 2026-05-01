@@ -320,19 +320,10 @@ namespace http {
 		}
 
 		std::pair<types::HttpStatus, Request> Request::parse_message(Connection& c) {
-			std::cerr << "=== parse_message enter ===" << std::endl;
 			Request parsed_request;
 			types::HttpStatus status_code = types::OK;
 			try {
-				std::string raw = c.read_buffer();
-				std::cerr << "initial buffer size: " << raw.size() << std::endl;
-				std::cerr << raw << std::endl;
-				size_t header_end = raw.find("\r\n\r\n");
-				std::string headers_only = raw.substr(0, header_end);
-				std::cerr << "consuming: " << (header_end + 4) << " bytes, buffer was: " << raw.size() << std::endl;
-				c.consume_read(header_end + 4);
-				std::cerr << "buffer after consume: " << c.read_buffer().size() << std::endl;
-				std::stringstream message_stream(headers_only);
+				std::stringstream message_stream(c.read_buffer());
 				std::string single_line;
 				std::getline(message_stream, single_line);
 				parsed_request.parse_start_line(single_line);

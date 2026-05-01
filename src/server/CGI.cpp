@@ -162,7 +162,7 @@ namespace http {
 
 		void CGI::write_body(int in_fd, const std::string& body) {
 			if (!body.empty()) {
-				signal(SIGPIPE, SIG_IGN);   // child may close stdin before we finish
+				signal(SIGPIPE, SIG_IGN);
 				write(in_fd, body.c_str(), body.size());
 			}
 			close(in_fd);

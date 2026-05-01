@@ -6,7 +6,8 @@
 namespace http {
 	namespace core {
 
-		Connection::Connection(int fd, uint16_t port) : _write_offset(0), _local_port(port), _socket(fd) {}
+		Connection::Connection(int fd, uint16_t port) : _write_offset(0),
+			_local_port(port), _socket(fd), _state(READ_HEADERS), _content_length(0) {}
 
 		Connection::~Connection() {}
 
@@ -73,6 +74,14 @@ namespace http {
 			return _local_port;
 		}
 
+		ReadState Connection::get_state() const {
+			return _state;
+		}
+
+		void Connection::set_state(ReadState state) {
+			_state = state;
+		}
+
 		Connection* Connection::make_connection(ServerSocket& server) {
 			int fd = server.accept_fd();
 			if (fd < 0)
@@ -94,6 +103,19 @@ namespace http {
 				return NULL;
 			}
 			return new Connection(fd, port);
+		}
+
+		bool Connection::chunked_complete() const {
+			return _read_buf.find("0\r\n\r\n");
+		}
+
+		bool Connection::content_length_complete() const {
+			size_t pos = _read_buf.find("\r\n\r\n");
+			if (pos == std::string::npos)
+				return false;
+			size_t body_start = pos + 4;
+			size_t body_available = _read_buf.size() - body_start;
+			return body_available >= _content_length;
 		}
 
 		Server::Server() {}

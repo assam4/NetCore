@@ -27,7 +27,7 @@ namespace http {
                 std::string root;
                 std::pair<std::string, std::string> ret_redirection;
                 std::string autoindex;
-            }; 
+            };
 
             /**
             * @struct __location_row_data
@@ -60,12 +60,12 @@ namespace http {
             struct  __location_row_data: __shared_row_data {
                 __location_row_data() {}
                 __location_row_data(const __server_row_data& serv): __shared_row_data(serv) {}
-                std::set<std::string>   cgi_extension;
+                std::vector<std::string>   cgi_extension;
                 std::string upload_location;
                 std::string path;
                 std::string modifier;
             };
-        
+
             /**
             * @class ConfigParser
             * @brief Parser for nginx-style configuration files
